@@ -58,22 +58,36 @@ class UserModel(Base):
         back_populates="user"
     )
 
-    class UserProfileModel(Base):
-        __tablename__ = "user_profile"
 
-        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-        first_name: Mapped[Optional[str]] = mapped_column(String(100))
-        last_name: Mapped[Optional[str]] = mapped_column(String(100))
-        avatar: Mapped[Optional[str]] = mapped_column(String(255))
-        gender: Mapped[Optional[GenderEnum]] = mapped_column(Enum(GenderEnum))
-        date_of_birth: Mapped[Optional[Date]] = mapped_column(Date)
-        info: Mapped[Optional[str]] = mapped_column(String(255))
+class UserProfileModel(Base):
+    __tablename__ = "user_profile"
 
-        user_id: Mapped[int] = mapped_column(ForeignKey(
-            "users.id",
-            ondelete="CASCADE"
-        ),
-            nullable=False,
-            unique=True
-        )
-        user: Mapped["UserModel"] = relationship("UserModel", back_populates="profile")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    first_name: Mapped[Optional[str]] = mapped_column(String(100))
+    last_name: Mapped[Optional[str]] = mapped_column(String(100))
+    avatar: Mapped[Optional[str]] = mapped_column(String(255))
+    gender: Mapped[Optional[GenderEnum]] = mapped_column(Enum(GenderEnum))
+    date_of_birth: Mapped[Optional[Date]] = mapped_column(Date)
+    info: Mapped[Optional[str]] = mapped_column(String(255))
+
+    user_id: Mapped[int] = mapped_column(ForeignKey(
+        "users.id",
+        ondelete="CASCADE"
+    ),
+        nullable=False,
+        unique=True
+    )
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="profile")
+
+
+class ActivationTokenModel(Base):
+    __tablename__ = "activation_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=text("TIMEZONE('utc', now())")
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="activation_token")
