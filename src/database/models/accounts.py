@@ -89,5 +89,15 @@ class ActivationTokenModel(Base):
         DateTime,
         server_default=text("TIMEZONE('utc', now())")
     )
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="activation_token")
+
+
+class PasswordResetTokenModel(Base):
+    __tablename__ = "password_reset_tokens"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset-token")
