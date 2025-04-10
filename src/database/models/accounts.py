@@ -100,4 +100,15 @@ class PasswordResetTokenModel(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset-token")
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset_token")
+
+
+class RefreshTokenModel(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(Integer, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_token")
