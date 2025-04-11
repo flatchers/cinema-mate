@@ -1,10 +1,13 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+import hashlib
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Boolean, Date, DateTime, func, text
 from sqlalchemy.orm import relationship, mapped_column, Mapped
-from base import Base
+from src.database.models.base import Base
+from src.security import validations
+from src.security.utils import generate_token
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -22,9 +25,13 @@ class UserGroup(Base):
     __tablename__ = "user_groups"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[UserGroupEnum] = mapped_column(Enum(UserGroupEnum), nullable=False, unique=True)
+    name: Mapped[UserGroupEnum] = mapped_column(
+        Enum(UserGroupEnum),
+        nullable=False,
+        unique=True,
+    )
 
-    user: Mapped[List["UserModel"]] = relationship("UserModel", back_populates="group")
+    users: Mapped[List["UserModel"]] = relationship("UserModel", back_populates="group")
 
 
 class UserModel(Base):
@@ -36,12 +43,12 @@ class UserModel(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("TIMEZONE('utc', now())")
+        server_default=func.current_timestamp()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("TIMEZONE('utc', now())"),
-        onupdate=text("TIMEZONE('utc', now())")
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp()
     )
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="users")
@@ -57,6 +64,15 @@ class UserModel(Base):
         "RefreshTokenModel",
         back_populates="user"
     )
+
+    @property
+    def password(self):
+        raise AttributeError("Password is write-only. Use the setter to set the password.")
+
+    @password.setter
+    def password(self, raw_password: str) -> None:
+        validations.password_validator_func(raw_password)
+        self._hashed_password = raw_password
 
 
 class UserProfileModel(Base):
@@ -84,10 +100,11 @@ class ActivationTokenModel(Base):
     __tablename__ = "activation_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    token: Mapped[str] = mapped_column(String(255), unique=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True, nullable= False, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime,
-        server_default=text("TIMEZONE('utc', now())")
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="activation_token")
@@ -96,8 +113,12 @@ class ActivationTokenModel(Base):
 class PasswordResetTokenModel(Base):
     __tablename__ = "password_reset_tokens"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    token: Mapped[str] = mapped_column(String(255), unique=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    token: Mapped[str] = mapped_column(String(255), unique=True, default=generate_token)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
+    )
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset_token")
@@ -107,8 +128,12 @@ class RefreshTokenModel(Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    token: Mapped[str] = mapped_column(Integer, unique=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    token: Mapped[str] = mapped_column(Integer, unique=True, default=generate_token)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
+    )
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_token")
