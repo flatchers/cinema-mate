@@ -15,3 +15,7 @@ class UserCreateRequest(BaseModel):
 class UserCreateResponse(UserCreate):
     id: int
 
+
+class TokenActivationRequest(UserCreate):
+    token: str
+
