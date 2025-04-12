@@ -19,3 +19,10 @@ class UserCreateResponse(UserCreate):
 class TokenActivationRequest(UserCreate):
     token: str
 
+
+class TokenResetPasswordRequest(UserCreate):
+    pass
+
+
+class MessageResponse(BaseModel):
+    message: str
