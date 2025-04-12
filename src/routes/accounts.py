@@ -1,11 +1,13 @@
 from fastapi import APIRouter, status, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, ActivationTokenModel
+from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, ActivationTokenModel, \
+    PasswordResetTokenModel
 from src.database.session_sqlite import get_db
-from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest
+from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest, \
+    TokenResetPasswordRequest
 
 router = APIRouter()
 
@@ -81,3 +83,26 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
     return {"detail": "Activation successful"}
 
 
+@router.post("/password-reset/", status_code=status.HTTP_200_OK)
+async def user_password_reset(schema: TokenResetPasswordRequest, session: AsyncSession = Depends(get_db)):
+    _user_stmt = select(UserModel).where(UserModel.email == schema.email)
+    _user_result = await session.execute(_user_stmt)
+    user = _user_result.scalars().first()
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email or password"
+        )
+
+    stmt_reset_token = select(PasswordResetTokenModel).filter_by(user_id=user.id)
+    result_stmt = await session.execute(stmt_reset_token)
+    reset_token = result_stmt.scalars().first()
+
+    if not reset_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or password")
+
+    if reset_token:
+        await session.delete(reset_token)
+        await session.commit()
+    return {"message": "Token successful deleted"}
