@@ -5,12 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, ActivationTokenModel
 from src.database.session_sqlite import get_db
-from src.schemas.accounts import UserCreateResponse, UserCreateRequest
+from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register/", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
 async def user_registration(schema: UserCreateRequest, session: AsyncSession = Depends(get_db)):
 
     stmt_email = select(UserModel).where(UserModel.email == schema.email)
@@ -23,7 +23,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
 
     if user_email:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Email already exist"
         )
 
@@ -46,6 +46,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
         activate_token = ActivationTokenModel(user_id=new_user.id)
         session.add(activate_token)
         await session.commit()
+        print(activate_token.token)
 
     except SQLAlchemyError as e:
         await session.rollback()
@@ -55,3 +56,28 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
         ) from e
 
     return new_user
+
+
+@router.post("/activate/", status_code=status.HTTP_200_OK)
+async def user_token_activation(schema: TokenActivationRequest, session: AsyncSession = Depends(get_db)):
+
+    stmt_token = select(ActivationTokenModel).where(ActivationTokenModel.token == schema.token)
+    result_token = await session.execute(stmt_token)
+    activ_token = result_token.scalars().first()
+
+    stmt_user = select(UserModel).where(UserModel.email == schema.email)
+    result_user = await session.execute(stmt_user)
+    user = result_user.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{schema.email} does not exist")
+    if not activ_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered")
+    if user.is_active:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You are already active")
+
+    user.is_active = True
+    await session.commit()
+    return {"detail": "Activation successful"}
+
+
