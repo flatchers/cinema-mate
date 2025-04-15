@@ -1,13 +1,17 @@
+from datetime import datetime, timezone, timedelta
+
 from fastapi import APIRouter, status, Depends, HTTPException
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, ActivationTokenModel, \
-    PasswordResetTokenModel
+    PasswordResetTokenModel, RefreshTokenModel
 from src.database.session_sqlite import get_db
 from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest, \
-    TokenResetPasswordRequest
+    TokenResetPasswordRequest, UserLoginRequest, UserLoginResponse
+from src.security.token_manipulation import create_refresh_token, create_access_token
+from src.security.validations import verify_password
 
 router = APIRouter()
 
@@ -83,11 +87,11 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
     return {"detail": "Activation successful"}
 
 
-@router.post("/password-reset/", status_code=status.HTTP_200_OK)
+@router.post("/password-reset/request/", status_code=status.HTTP_200_OK)
 async def user_password_reset(schema: TokenResetPasswordRequest, session: AsyncSession = Depends(get_db)):
-    _user_stmt = select(UserModel).where(UserModel.email == schema.email)
-    _user_result = await session.execute(_user_stmt)
-    user = _user_result.scalars().first()
+    user_stmt = select(UserModel).where(UserModel.email == schema.email)
+    user_result = await session.execute(user_stmt)
+    user = user_result.scalars().first()
 
     if not user or not user.is_active:
         raise HTTPException(
@@ -95,14 +99,59 @@ async def user_password_reset(schema: TokenResetPasswordRequest, session: AsyncS
             detail="Invalid email or password"
         )
 
-    stmt_reset_token = select(PasswordResetTokenModel).filter_by(user_id=user.id)
-    result_stmt = await session.execute(stmt_reset_token)
-    reset_token = result_stmt.scalars().first()
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not active")
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email")
 
-    if not reset_token:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or password")
+    await session.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id))
 
-    if reset_token:
-        await session.delete(reset_token)
+    new_token = PasswordResetTokenModel(user_id=user.id)
+
+    session.add(new_token)
+    await session.commit()
+    print("new_tokennn", new_token.token)
+
+    return {"message": "Request successful"}
+
+
+@router.post("/login/", response_model=UserLoginResponse)
+async def user_login(schema: UserLoginRequest, session: AsyncSession = Depends(get_db)):
+    stmt_user = select(UserModel).where(UserModel.email == schema.email)
+    result_user = await session.execute(stmt_user)
+    user = result_user.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    if not user.is_active or not user.verify_password_pwd(schema.password):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not activated.",
+        )
+
+    refresh = create_refresh_token({"user_id": user.id})
+    try:
+        refresh_token = RefreshTokenModel(
+            user_id=user.id,
+            token=refresh
+        )
+
+        session.add(refresh_token)
         await session.commit()
-    return {"message": "Token successful deleted"}
+
+    except SQLAlchemyError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during user creation. -- {e}"
+        )
+
+    access = create_access_token({"user_id": user.id})
+    return {
+        "access_token": refresh_token.token,
+        "refresh_token": access
+    }
