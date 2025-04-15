@@ -8,6 +8,7 @@ from sqlalchemy.orm import relationship, mapped_column, Mapped
 from src.database.models.base import Base
 from src.security import validations
 from src.security.utils import generate_token
+from src.security.validations import password_hash_pwd, verify_password
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -72,7 +73,10 @@ class UserModel(Base):
     @password.setter
     def password(self, raw_password: str) -> None:
         validations.password_validator_func(raw_password)
-        self._hashed_password = raw_password
+        self._hashed_password = password_hash_pwd(raw_password)
+
+    def verify_password_pwd(self, raw_password):
+        return verify_password(raw_password, self._hashed_password)
 
 
 class UserProfileModel(Base):
@@ -100,13 +104,13 @@ class ActivationTokenModel(Base):
     __tablename__ = "activation_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    token: Mapped[str] = mapped_column(String(255), unique=True, nullable= False, default=generate_token)
+    token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="activation_token")
 
 
@@ -120,7 +124,7 @@ class PasswordResetTokenModel(Base):
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset_token")
 
 
@@ -128,12 +132,12 @@ class RefreshTokenModel(Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    token: Mapped[str] = mapped_column(Integer, unique=True, default=generate_token)
+    token: Mapped[str] = mapped_column(String(512), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_token")
