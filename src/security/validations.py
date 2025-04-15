@@ -2,6 +2,11 @@ import re
 
 from fastapi import HTTPException
 from starlette import status
+from passlib.context import CryptContext
+import bcrypt
+
+
+bcrypt.__about__ = bcrypt
 
 
 def email_validator_func(email):
@@ -28,3 +33,14 @@ def password_validator_func(password):
             detail="Make sure your password has a capital letter in it"
         )
     return password
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def password_hash_pwd(password):
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
