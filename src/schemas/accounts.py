@@ -26,3 +26,13 @@ class TokenResetPasswordRequest(UserCreate):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class UserLoginRequest(UserCreate):
+    password: str
+
+
+class UserLoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
