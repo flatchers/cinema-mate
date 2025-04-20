@@ -24,6 +24,12 @@ class TokenResetPasswordRequest(UserCreate):
     pass
 
 
+class TokenResetPasswordCompleteRequest(BaseModel):
+    email: EmailStr
+    password: str
+    token: str
+
+
 class MessageResponse(BaseModel):
     message: str
 
