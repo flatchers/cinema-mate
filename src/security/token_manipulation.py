@@ -53,6 +53,10 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
+def decode_token(token: str):
+    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/accounts/login/")
 
 
@@ -103,3 +107,5 @@ async def authenticate_user(user_id: str, password: str, db: AsyncSession = Depe
     if not verify_password(password, user.password):
         return False
     return user
+
+
