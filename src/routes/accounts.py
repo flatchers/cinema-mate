@@ -11,9 +11,10 @@ from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, Ac
     PasswordResetTokenModel, RefreshTokenModel
 from src.database.session_sqlite import get_db
 from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest, \
-    TokenResetPasswordRequest, UserLoginRequest, UserLoginResponse, TokenResetPasswordCompleteRequest, MessageResponse
+    TokenResetPasswordRequest, UserLoginRequest, UserLoginResponse, TokenResetPasswordCompleteRequest, MessageResponse, \
+    AccessTokenResponse, RefreshTokenRequest
 from src.security.token_manipulation import create_refresh_token, create_access_token, get_current_user, \
-    authenticate_user, get_user_token
+    authenticate_user, get_user_token, decode_token
 from src.security.validations import verify_password, password_validator_func, password_hash_pwd
 
 router = APIRouter()
@@ -198,7 +199,7 @@ async def user_login(
             detail="User account is not activated.",
         )
 
-    refresh = create_refresh_token({"sub": db_user.id})
+    refresh = create_refresh_token({"sub": str(db_user.id)})
     try:
         refresh_token = RefreshTokenModel(
             user_id=db_user.id,
@@ -215,7 +216,7 @@ async def user_login(
             detail=f"An error occurred during user creation. -- {e}"
         )
 
-    access = create_access_token({"sub": db_user.id})
+    access = create_access_token({"sub": str(db_user.id)})
     return {
         "access_token": access,
         "refresh_token": refresh_token.token
@@ -247,3 +248,40 @@ async def logout(
     await session.commit()
 
     return {"message": "Logged out successfully"}
+
+
+@router.post("/refresh/", response_model=AccessTokenResponse, status_code=status.HTTP_200_OK)
+async def refresh(
+        token_data: RefreshTokenRequest,
+        db: AsyncSession = Depends(get_db),
+):
+    try:
+        decoded_token = decode_token(token_data.refresh_token)
+        user_id = decoded_token.get("sub")
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+
+    stmt = select(RefreshTokenModel).filter_by(token=token_data.refresh_token)
+    result = await db.execute(stmt)
+    refresh_token_record = result.scalars().first()
+    if not refresh_token_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found.",
+        )
+
+    stmt = select(UserModel).filter_by(id=user_id)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    new_access_token = create_access_token({"sub": str(user_id)})
+
+    return AccessTokenResponse(access_token=new_access_token)
