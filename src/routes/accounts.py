@@ -358,7 +358,7 @@ async def refresh(
 
     Getting new access token provided current refresh token
 
-    :param token_data:
+    :param token_data: schema for input
     :param db: query to database
     :return: AccessTokenResponse
     """
@@ -397,6 +397,17 @@ async def refresh(
 @router.post("update/{user_id}/", response_model=MessageResponse, status_code=status.HTTP_200_OK)
 async def update_user(user_id: int, schema: AdminUpdateRequest, session: AsyncSession = Depends(get_db)):
 
+    """
+    User Update
+
+    allows administrators changing role & activation account
+
+    :param user_id: indicates the user id that will be changed
+    :param schema: schema for input for updating
+    :param session: query to database
+    :return: message
+    """
+
     stmt = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(stmt)
     user = result.scalars().first()
@@ -428,12 +439,3 @@ async def update_user(user_id: int, schema: AdminUpdateRequest, session: AsyncSe
     return {
         "message": f"Successful updated {user.group.name}, {user.group_id}",
     }
-
-
-@router.get("user/info/{user_id}")
-async def user_info(user_id: int, session: AsyncSession = Depends(get_db)):
-    stmt = select(UserModel).where(UserModel.id == user_id)
-    result = await session.execute(stmt)
-    user = result.scalars().first()
-
-    return user
