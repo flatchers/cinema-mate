@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import List, Literal
 
 from pydantic import BaseModel, EmailStr
+
+from src.database.models.accounts import UserGroupEnum
 
 
 class UserCreate(BaseModel):
@@ -50,3 +53,12 @@ class RefreshTokenRequest(BaseModel):
 
 class AccessTokenResponse(BaseModel):
     access_token: str
+
+
+class EmailSchema(BaseModel):
+    email: List[EmailStr]
+
+
+class AdminUpdateRequest(BaseModel):
+    group: Literal["user", "moderator", "admin"]
+    is_active: bool
