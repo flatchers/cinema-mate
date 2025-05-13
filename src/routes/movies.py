@@ -98,4 +98,39 @@ async def film_create(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
+@router.get("/lists", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
+async def movie_list(
+        page: int = Query(1, ge=1),
+        per_page: int = Query(10, ge=1),
+        db: AsyncSession = Depends(get_db)
+):
+
+    stmt = select(Movie).order_by(Movie.id.desc())
+    result: Result = await db.execute(stmt)
+    movies = result.scalars().all()
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_items = movies[start:end]
+
+    stmt_total = select(func.count(Movie.id))
+    result: Result = await db.execute(stmt_total)
+    total_items = result.scalars().first()
+
+    total_pages = (total_items + per_page - 1) // per_page
+    prev_page = f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None
+    if page < total_pages:
+        next_page = f"/movies/?page={page + 1}&per_page={per_page}"
+    else:
+        raise HTTPException(status_code=404, detail="No movies found.")
+    if not movies:
+        raise HTTPException(status_code=404, detail="No movies found.")
+    return {
+        "movies": paginated_items,
+        "prev_page": prev_page,
+        "next_page": next_page,
+        "total_pages": total_pages,
+        "total_items": total_items
+    }
+
+
 
