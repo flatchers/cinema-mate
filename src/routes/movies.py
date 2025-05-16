@@ -7,7 +7,7 @@ from starlette import status
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
 from src.database.models.movies import Movie, Certification, Genre, Director, Star
 from src.database.session_sqlite import get_db
-from src.schemas.movies import MovieCreateSchema, MoviesPaginationResponse
+from src.schemas.movies import MovieCreateSchema, MoviesPaginationResponse, MovieList, MovieCreateResponse
 from src.security.token_manipulation import get_current_user
 
 router = APIRouter()
@@ -16,7 +16,7 @@ router = APIRouter()
 """ CRUD OPERATIONS FOR MODERATORS """
 
 
-@router.post("/create/")
+@router.post("/create/", response_model=MovieCreateResponse, status_code=status.HTTP_201_CREATED)
 async def film_create(
         schema: MovieCreateSchema,
         db: AsyncSession = Depends(get_db),
@@ -91,14 +91,28 @@ async def film_create(
         db.add(new_movie)
         await db.commit()
         await db.refresh(new_movie, ["genres", "directors", "stars"])
-        return new_movie
-
-    except SQLAlchemyError as e:
+        return MovieCreateResponse(
+            id=new_movie.id,
+            name=new_movie.name,
+            year=new_movie.year,
+            time=new_movie.time,
+            imdb=new_movie.imdb,
+            votes=new_movie.votes,
+            meta_score=new_movie.meta_score,
+            gross=new_movie.gross,
+            description=new_movie.description,
+            price=new_movie.price,
+            certification=new_movie.certification.name,
+            genres=[g.name for g in new_movie.genres],
+            directors=[d.name for d in new_movie.directors],
+            stars=[s.name for s in new_movie.stars],
+        )
+    except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"error: {str(e)}")
 
 
-@router.get("/lists", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
+@router.get("/lists/", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
 async def movie_list(
         page: int = Query(1, ge=1),
         per_page: int = Query(10, ge=1),
@@ -111,26 +125,17 @@ async def movie_list(
     start = (page - 1) * per_page
     end = start + per_page
     paginated_items = movies[start:end]
-
+    if not paginated_items:
+        raise HTTPException(status_code=404, detail="No movies found.")
     stmt_total = select(func.count(Movie.id))
     result: Result = await db.execute(stmt_total)
     total_items = result.scalars().first()
 
     total_pages = (total_items + per_page - 1) // per_page
-    prev_page = f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None
-    if page < total_pages:
-        next_page = f"/movies/?page={page + 1}&per_page={per_page}"
-    else:
-        raise HTTPException(status_code=404, detail="No movies found.")
-    if not movies:
-        raise HTTPException(status_code=404, detail="No movies found.")
-    return {
-        "movies": paginated_items,
-        "prev_page": prev_page,
-        "next_page": next_page,
-        "total_pages": total_pages,
-        "total_items": total_items
-    }
-
-
-
+    return MoviesPaginationResponse(
+        movies=[item for item in paginated_items],
+        prev_page=f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None,
+        next_page=f"/movies/?page={page + 1}&per_page={per_page}" if page < total_pages else None,
+        total_pages=total_pages,
+        total_items=total_items
+    )
