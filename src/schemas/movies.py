@@ -4,27 +4,45 @@ from pydantic import BaseModel
 
 
 class MovieList(BaseModel):
+    id: int
     name: str
     year: int
     time: int
     imdb: float
-    votes: int
-    meta_score: float
-    gross: float
-    description: str
     price: float
-    certification: str
-    genres: List[str]
-    directors: List[str]
-    stars: List[str]
+
+    model_config = {"from_attributes": True}
 
 
-class MoviesPaginationResponse(MovieList):
+class MoviesPaginationResponse(BaseModel):
     movies: list[MovieList]
     prev_page: Optional[str]
     next_page: Optional[str]
     total_pages: int
     total_items: int
+
+
+class GenreResponse(BaseModel):
+    name: str
+
+
+class DirectorResponse(BaseModel):
+    name: str
+
+
+class StarResponse(BaseModel):
+    name: str
+
+
+class MovieCreateResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    year: int
+    certification: str
+    genres: list[str]
+    directors: list[str]
+    stars: list[str]
 
 
 class MovieCreateSchema(BaseModel):
@@ -38,8 +56,6 @@ class MovieCreateSchema(BaseModel):
     description: str
     price: float
     certification: str
-    genres: List[str]
-    directors: List[str]
-    stars: List[str]
-
-
+    genres: list[str]
+    directors: list[str]
+    stars: list[str]
