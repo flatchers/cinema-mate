@@ -22,16 +22,32 @@ class MoviesPaginationResponse(BaseModel):
     total_items: int
 
 
+class CertificationResponse(BaseModel):
+    name: str
+
+    class Config:
+        from_attributes: bool = True
+
+
 class GenreResponse(BaseModel):
     name: str
+
+    class Config:
+        from_attributes: bool = True
 
 
 class DirectorResponse(BaseModel):
     name: str
 
+    class Config:
+        from_attributes: bool = True
+
 
 class StarResponse(BaseModel):
     name: str
+
+    class Config:
+        from_attributes: bool = True
 
 
 class MovieCreateResponse(BaseModel):
@@ -59,3 +75,20 @@ class MovieCreateSchema(BaseModel):
     genres: list[str]
     directors: list[str]
     stars: list[str]
+
+
+class MovieDetailResponse(BaseModel):
+    name: str
+    year: int
+    time: int
+    imdb: float
+    votes: int
+    meta_score: float
+    gross: float
+    description: str
+    price: float
+    like_count: int
+    certification: CertificationResponse
+    genres: List[GenreResponse]
+    directors: List[DirectorResponse]
+    stars: List[StarResponse]
