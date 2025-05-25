@@ -2,12 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, Result, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
 from src.database.models.movies import Movie, Certification, Genre, Director, Star
 from src.database.session_sqlite import get_db
-from src.schemas.movies import MovieCreateSchema, MoviesPaginationResponse, MovieList, MovieCreateResponse
+from src.schemas.movies import (
+    MovieCreateSchema,
+    MoviesPaginationResponse,
+    MovieCreateResponse,
+    MovieDetailResponse
+)
 from src.security.token_manipulation import get_current_user
 
 router = APIRouter()
@@ -27,8 +33,8 @@ async def film_create(
     result_group = await db.execute(stmt_group)
     user_group = result_group.scalars().first()
 
-    if user_group.name != UserGroupEnum.MODERATOR:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
+    # if user_group.name != UserGroupEnum.MODERATOR:
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
     try:
 
         cert_stmt = select(Certification).where(Certification.name == schema.certification)
@@ -139,3 +145,42 @@ async def movie_list(
         total_pages=total_pages,
         total_items=total_items
     )
+
+
+@router.get("/detail/", response_model=MovieDetailResponse, status_code=status.HTTP_200_OK)
+async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
+    stmt = (select(Movie).where(Movie.id == movie_id)
+            .options(selectinload(Movie.certification))
+            .options(selectinload(Movie.genres))
+            .options(selectinload(Movie.directors))
+            .options(selectinload(Movie.stars))
+            )
+    result: Result = await db.execute(stmt)
+    movie = result.scalars().first()
+
+    return movie
+
+
+@router.post("/{movie_id}/", status_code=status.HTTP_201_CREATED)
+async def add_and_remove_like(
+        movie_id: int,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Movie).options(selectinload(Movie.like_users)).where(Movie.id == movie_id)
+    result: Result = await db.execute(stmt)
+    movie = result.scalars().first()
+
+    user_stmt = select(UserModel).where(UserModel.id == current_user.id)
+    result: Result = await db.execute(user_stmt)
+    user = result.scalars().first()
+
+    if user in movie.like_users:
+        movie.like_count -= 1
+        movie.like_users.remove(user)  # без await!
+    else:
+        movie.like_count += 1
+        movie.like_users.append(user)  # без await!
+
+    await db.commit()
+    return {"like_count": movie.like_count}
