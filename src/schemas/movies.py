@@ -2,6 +2,9 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
+from src.database.models.movies import Comment
+from src.schemas.accounts import UserCreate
+
 
 class MovieList(BaseModel):
     id: int
@@ -50,6 +53,14 @@ class StarResponse(BaseModel):
         from_attributes: bool = True
 
 
+class CommentResponse(BaseModel):
+    user: UserCreate
+    comment: str
+
+    class Config:
+        from_attributes: bool = True
+
+
 class MovieCreateResponse(BaseModel):
     id: int
     name: str
@@ -76,6 +87,9 @@ class MovieCreateSchema(BaseModel):
     directors: list[str]
     stars: list[str]
 
+    class Config:
+        from_attributes: bool = True
+
 
 class MovieDetailResponse(BaseModel):
     name: str
@@ -92,3 +106,16 @@ class MovieDetailResponse(BaseModel):
     genres: List[GenreResponse]
     directors: List[DirectorResponse]
     stars: List[StarResponse]
+    comments: List[CommentResponse]
+
+    class Config:
+        from_attributes: bool = True
+
+
+class CommentSchema(BaseModel):
+    comments: str
+
+    class Config:
+        from_attributes: bool = True
+
+
