@@ -9,6 +9,9 @@ from src.database.models.accounts import UserGroupEnum
 class UserCreate(BaseModel):
     email: EmailStr
 
+    class Config:
+        from_attributes: bool = True
+
 
 class UserCreateRequest(BaseModel):
     email: EmailStr
