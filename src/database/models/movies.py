@@ -39,6 +39,13 @@ MovieLikeUserModel = Table(
     Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
 )
 
+MovieFavouriteUserModel = Table(
+    "movie_favourite_users",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True, nullable=False),
+    Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
+)
+
 
 class Genre(Base):
     __tablename__ = "genres"
@@ -96,8 +103,6 @@ class Comment(Base):
     movie: Mapped["Movie"] = relationship("Movie", back_populates="comments")
 
 
-
-
 if TYPE_CHECKING:
     from src.database.models.accounts import UserModel
 
@@ -125,6 +130,11 @@ class Movie(Base):
         "UserModel",
         secondary=MovieLikeUserModel,
         back_populates="like_movies"
+    )
+    favourite_users: Mapped[Optional[List["UserModel"]]] = relationship(
+        "UserModel",
+        secondary=MovieFavouriteUserModel,
+        back_populates="favourite_movies"
     )
     certification_id: Mapped[int] = mapped_column(ForeignKey("certifications.id", ondelete="CASCADE"), nullable=False)
     certification: Mapped[Certification] = relationship("Certification", back_populates="movies")
