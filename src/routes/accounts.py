@@ -270,7 +270,7 @@ async def user_login(
             detail="Invalid email or password"
         )
 
-    if not db_user.is_active or not db_user.verify_password_pwd(password):
+    if not db_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is not activated.",
@@ -414,6 +414,7 @@ async def update_user(
     :param user_id: indicates the user id that will be changed
     :param schema: schema for input for updating
     :param session: query to database
+    :param current_user: current user
     :return: message
     """
 

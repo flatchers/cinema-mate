@@ -11,4 +11,3 @@ class MovieFilter(Filter):
 
     class Constants(Filter.Constants):
         model = Movie
-

@@ -117,5 +117,3 @@ class CommentSchema(BaseModel):
 
     class Config:
         from_attributes: bool = True
-
-

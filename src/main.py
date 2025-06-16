@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 
-from src.routes.accounts import router
-from src.database.models.base import Base
-from src.database.session_sqlite import engine
+from src.routes.accounts import router as router_accounts
+from src.routes.movies import router as router_movies
 
 app = FastAPI(
     title="Movies homework",
@@ -11,4 +10,5 @@ app = FastAPI(
 
 prefix_path = "/api/v1"
 
-app.include_router(router, prefix=f"{prefix_path}/accounts", tags=["accounts"])
+app.include_router(router_accounts, prefix=f"{prefix_path}/accounts", tags=["accounts"])
+app.include_router(router_movies, prefix=f"{prefix_path}/movies", tags=["movies"])

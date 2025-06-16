@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models.accounts import UserModel
@@ -86,7 +87,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
             raise credentials_exception
     except InvalidTokenError:
         raise credentials_exception
-    user = await get_user_by_id(user_id, db)
+    stmt = (
+        select(UserModel)
+        .options(selectinload(UserModel.group))
+        .where(UserModel.id == user_id)
+    )
+    result = await db.execute(stmt)
+    user = result.scalars().first()
     if user is None:
         raise credentials_exception
     return user
