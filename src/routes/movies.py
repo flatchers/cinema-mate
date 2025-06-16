@@ -17,7 +17,7 @@ from src.schemas.movies import (
     MovieCreateSchema,
     MoviesPaginationResponse,
     MovieCreateResponse,
-    MovieDetailResponse, CommentSchema,
+    MovieDetailResponse, CommentSchema, MoviesForGenreResponse,
 )
 from src.security.token_manipulation import get_current_user
 
@@ -360,3 +360,23 @@ async def favourite_search(
         filtered_list = sorted(filtered_list, key=lambda m: getattr(m, sort.order_by), reverse=sort.descending)
 
     return filtered_list
+
+
+@router.get("/genre/{genre_id}", response_model=MoviesForGenreResponse)
+async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    stmt_movies = select(Movie).join(Movie.genres).options(selectinload(Movie.genres)).where(Genre.id == genre_id)
+    result: Result = await db.execute(stmt_movies)
+    movies = result.scalars().all()
+
+    stmt_movies = (
+        select(func.count(Movie.id))
+        .select_from(Movie)
+        .join(Movie.genres)
+        .where(Genre.id == genre_id))
+    result: Result = await db.execute(stmt_movies)
+    count_movies = result.scalars().first()
+
+    stmt_genres = (select(Genre))
+    result_genres: Result = await db.execute(stmt_genres)
+    genres = result_genres.scalars().all()
+    return MoviesForGenreResponse(count_movies=count_movies, genres=genres, movies=movies)
