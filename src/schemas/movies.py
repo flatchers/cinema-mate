@@ -117,3 +117,13 @@ class CommentSchema(BaseModel):
 
     class Config:
         from_attributes: bool = True
+
+
+class MoviesForGenreResponse(BaseModel):
+    count_movies: int
+    genres: List[GenreResponse]
+    movies: List[MovieList]
+
+    class Config:
+        from_attributes: bool = True
+
