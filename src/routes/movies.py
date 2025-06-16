@@ -1,4 +1,7 @@
+from typing import Optional, List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi_filter import FilterDepends
 from sqlalchemy import select, Result, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,13 +9,15 @@ from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
-from src.database.models.movies import Movie, Certification, Genre, Director, Star
+from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment
 from src.database.session_sqlite import get_db
+from src.querying.movie_filtering import MovieFilter
+from src.querying.movie_sorting import ItemQueryParams
 from src.schemas.movies import (
     MovieCreateSchema,
     MoviesPaginationResponse,
     MovieCreateResponse,
-    MovieDetailResponse
+    MovieDetailResponse, CommentSchema,
 )
 from src.security.token_manipulation import get_current_user
 
@@ -122,12 +127,18 @@ async def film_create(
 async def movie_list(
         page: int = Query(1, ge=1),
         per_page: int = Query(10, ge=1),
+        movie_filter: MovieFilter = FilterDepends(MovieFilter),
+        sort: ItemQueryParams = Depends(),
         db: AsyncSession = Depends(get_db)
 ):
+    order_column = getattr(Movie, sort.order_by)
+    if sort.descending:
+        order_column = order_column.desc()
 
-    stmt = select(Movie).order_by(Movie.id.desc())
+    stmt = movie_filter.filter(select(Movie).order_by(order_column))
     result: Result = await db.execute(stmt)
     movies = result.scalars().all()
+
     start = (page - 1) * per_page
     end = start + per_page
     paginated_items = movies[start:end]
@@ -136,8 +147,8 @@ async def movie_list(
     stmt_total = select(func.count(Movie.id))
     result: Result = await db.execute(stmt_total)
     total_items = result.scalars().first()
-
     total_pages = (total_items + per_page - 1) // per_page
+
     return MoviesPaginationResponse(
         movies=[item for item in paginated_items],
         prev_page=f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None,
@@ -147,13 +158,49 @@ async def movie_list(
     )
 
 
+@router.post("/search/", response_model=List[MovieDetailResponse], status_code=status.HTTP_200_OK)
+async def movie_search(search: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+
+    stmt = (select(Movie)
+            .options(selectinload(Movie.certification))
+            .options(selectinload(Movie.genres))
+            .options(selectinload(Movie.directors))
+            .options(selectinload(Movie.stars))
+            .options(selectinload(Movie.comments).selectinload(Comment.user))
+            )
+    result: Result = await db.execute(stmt)
+    movies = result.scalars().all()
+
+    if search:
+        list_search = []
+        for item in movies:
+            if search.lower() in item.name.lower():
+                list_search.append(item)
+
+            if search.lower() in item.description.lower():
+                list_search.append(item)
+
+            for actor in item.stars:
+                if search.lower() in actor.name.lower():
+                    list_search.append(item)
+
+            for director in item.directors:
+                if search.lower() in director.name.lower():
+                    list_search.append(item)
+        return list_search
+
+    return movies
+
+
 @router.get("/detail/", response_model=MovieDetailResponse, status_code=status.HTTP_200_OK)
 async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
+
     stmt = (select(Movie).where(Movie.id == movie_id)
             .options(selectinload(Movie.certification))
             .options(selectinload(Movie.genres))
             .options(selectinload(Movie.directors))
             .options(selectinload(Movie.stars))
+            .options(selectinload(Movie.comments).selectinload(Comment.user))
             )
     result: Result = await db.execute(stmt)
     movie = result.scalars().first()
@@ -161,7 +208,7 @@ async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
     return movie
 
 
-@router.post("/{movie_id}/", status_code=status.HTTP_201_CREATED)
+@router.post("/{movie_id}/like/", status_code=status.HTTP_201_CREATED)
 async def add_and_remove_like(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -177,10 +224,139 @@ async def add_and_remove_like(
 
     if user in movie.like_users:
         movie.like_count -= 1
-        movie.like_users.remove(user)  # без await!
+        movie.like_users.remove(user)
     else:
         movie.like_count += 1
-        movie.like_users.append(user)  # без await!
+        movie.like_users.append(user)
 
     await db.commit()
     return {"like_count": movie.like_count}
+
+
+@router.post("/{movie_id}/comments/", status_code=status.HTTP_201_CREATED)
+async def write_comments(
+        movie_id: int,
+        schema: CommentSchema,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+
+    stmt_user = select(UserModel).where(UserModel.id == current_user.id)
+    result_user: Result = await db.execute(stmt_user)
+    user = result_user.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    stmt_movie = select(Movie).where(Movie.id == movie_id)
+    result_movie: Result = await db.execute(stmt_movie)
+    movie = result_movie.scalars().first()
+
+    db_comment = Comment(comment=schema.comments, user_id=user.id, movie_id=movie.id)
+    db.add(db_comment)
+    await db.commit()
+    await db.refresh(db_comment)
+    return db_comment
+
+
+@router.post("/{movie_id}/favourite/", status_code=status.HTTP_201_CREATED)
+async def add_and_remove_favourite(
+        movie_id: int,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt_user = (select(UserModel)
+                 .options(selectinload(UserModel.favourite_movies))
+                 .where(UserModel.id == current_user.id)
+                 )
+    result: Result = await db.execute(stmt_user)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is unauthorized")
+
+    stmt_movie = select(Movie).where(Movie.id == movie_id)
+    result: Result = await db.execute(stmt_movie)
+    movie = result.scalars().first()
+
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Movie not found")
+
+    if movie not in user.favourite_movies:
+        user.favourite_movies.append(movie)
+        message = "added to favourite"
+    else:
+        user.favourite_movies.remove(movie)
+        message = "remove from favourite"
+    await db.commit()
+    return {"message": message}
+
+
+@router.get("/favourite/list/")
+async def favourite_list(current_user: UserModel = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    stmt_user = (select(UserModel)
+                 .options(selectinload(UserModel.favourite_movies))
+                 .where(UserModel.id == current_user.id)
+                 )
+    result: Result = await db.execute(stmt_user)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is unauthorized")
+
+    return user.favourite_movies
+
+
+@router.post("/favourite/search/", status_code=status.HTTP_200_OK)
+async def favourite_search(
+        search: Optional[str] = None,
+        current_user: UserModel = Depends(get_current_user),
+        movie_filter: MovieFilter = FilterDepends(MovieFilter),
+        sort: ItemQueryParams = Depends(),
+        db: AsyncSession = Depends(get_db)
+):
+
+    stmt = select(UserModel).options(
+        selectinload(UserModel.favourite_movies)
+        .selectinload(Movie.directors),
+        selectinload(UserModel.favourite_movies)
+        .selectinload(Movie.stars)
+    ).where(UserModel.id == current_user.id)
+    result: Result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is unauthorized")
+    search_list = user.favourite_movies
+    if search:
+        search_list = []
+        for item in user.favourite_movies:
+            if search.lower() in item.name.lower():
+                search_list.append(item)
+            if search.lower() in item.description.lower():
+                search_list.append(item)
+
+            for actor in item.stars:
+                if search.lower() in actor.name.lower():
+                    search_list.append(item)
+            for director in item.directors:
+                if search.lower() in director.name.lower():
+                    search_list.append(item)
+    unique_movies = {movie.id: movie for movie in search_list}.values()
+
+    if movie_filter:
+        filtered_list = []
+        for movie in unique_movies:
+            if movie_filter.year and movie.year != movie_filter.year:
+                continue
+            if movie_filter.imdb and movie.imdb < movie_filter.imdb:
+                continue
+            filtered_list.append(movie)
+
+    else:
+        filtered_list = unique_movies
+
+    if sort:
+        filtered_list = sorted(filtered_list, key=lambda m: getattr(m, sort.order_by), reverse=sort.descending)
+
+    return filtered_list
