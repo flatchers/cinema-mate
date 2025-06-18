@@ -127,3 +127,7 @@ class MoviesForGenreResponse(BaseModel):
     class Config:
         from_attributes: bool = True
 
+
+class ScoreRequestSchema(BaseModel):
+    score: float
+
