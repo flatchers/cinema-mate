@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
-from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment
+from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment, Rate
 from src.database.session_sqlite import get_db
 from src.querying.movie_filtering import MovieFilter
 from src.querying.movie_sorting import ItemQueryParams
@@ -17,7 +17,7 @@ from src.schemas.movies import (
     MovieCreateSchema,
     MoviesPaginationResponse,
     MovieCreateResponse,
-    MovieDetailResponse, CommentSchema, MoviesForGenreResponse,
+    MovieDetailResponse, CommentSchema, MoviesForGenreResponse, ScoreRequestSchema,
 )
 from src.security.token_manipulation import get_current_user
 
@@ -362,7 +362,7 @@ async def favourite_search(
     return filtered_list
 
 
-@router.get("/genre/{genre_id}", response_model=MoviesForGenreResponse)
+@router.get("/genre/{genre_id}/", response_model=MoviesForGenreResponse, status_code=status.HTTP_200_OK)
 async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
     stmt_movies = select(Movie).join(Movie.genres).options(selectinload(Movie.genres)).where(Genre.id == genre_id)
     result: Result = await db.execute(stmt_movies)
@@ -380,3 +380,32 @@ async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Dep
     result_genres: Result = await db.execute(stmt_genres)
     genres = result_genres.scalars().all()
     return MoviesForGenreResponse(count_movies=count_movies, genres=genres, movies=movies)
+
+
+@router.post("/score/{movie_id}/", status_code=status.HTTP_201_CREATED)
+async def rate(
+        movie_id: int,
+        schema: ScoreRequestSchema,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt_rate = select(Rate).where(Rate.movie_id == movie_id, Rate.user_id == current_user.id)
+    result: Result = await db.execute(stmt_rate)
+    rate = result.scalars().first()
+
+    stmt_movie = select(Movie).where(Movie.id == movie_id)
+    result: Result = await db.execute(stmt_movie)
+    movie = result.scalars().first()
+
+    if not rate:
+        new_rate = Rate(rate=schema.score, user_id=current_user.id, movie_id=movie_id)
+        movie.votes += 1
+        db.add(new_rate)
+        await db.commit()
+        await db.refresh(new_rate)
+        return {"message": f"new rate - {new_rate.rate}"}
+
+    rate.rate = schema.score
+    await db.commit()
+    await db.refresh(rate)
+    return {"message": f"updated rate - {rate.rate}"}
