@@ -38,7 +38,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+    to_encode.update(
+        {"exp": expire},
+    )
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -102,7 +104,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
 async def get_current_active_user(
     current_user: Annotated[UserCreate, Depends(get_current_user)],
 ):
-    if not current_user.is_activ:
+    if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 

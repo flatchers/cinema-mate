@@ -1,4 +1,4 @@
-from sqlalchemy import Time, Float, Text, UniqueConstraint
+from sqlalchemy import Time, Float, Text, UniqueConstraint, CheckConstraint
 from typing import List, Optional, TYPE_CHECKING
 import uuid
 from sqlalchemy import Integer, String, Table, Column, ForeignKey, DECIMAL
@@ -103,6 +103,21 @@ class Comment(Base):
     movie: Mapped["Movie"] = relationship("Movie", back_populates="comments")
 
 
+class Rate(Base):
+    __tablename__ = "rate"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rate: Mapped[int] = mapped_column(Float, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="rates")
+    movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"))
+    movie: Mapped["Movie"] = relationship("Movie", back_populates="rates")
+
+    __table_args__ = (
+        CheckConstraint("rate >= 1.0 AND rate <= 10.0", name="rate_between_1_and_10"),
+    )
+
+
 if TYPE_CHECKING:
     from src.database.models.accounts import UserModel
 
@@ -152,6 +167,10 @@ class Movie(Base):
         "Star",
         secondary=MovieStarModel,
         back_populates="movies"
+    )
+    rates: Mapped[list[Rate]] = relationship(
+        "Rate",
+        back_populates="movie"
     )
 
     __table_args__ = (

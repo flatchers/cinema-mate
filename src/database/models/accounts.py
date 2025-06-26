@@ -36,7 +36,7 @@ class UserGroup(Base):
 
 
 if TYPE_CHECKING:
-    from src.database.models.movies import Movie, MovieLikeUserModel, MoviesCommentUserModel, Comment
+    from src.database.models.movies import Movie, MovieLikeUserModel, MoviesCommentUserModel, Comment, Rate
 
 
 class UserModel(Base):
@@ -85,6 +85,11 @@ class UserModel(Base):
         "RefreshTokenModel",
         back_populates="user"
     )
+    rates: Mapped[List["Rate"]] = relationship(
+        "Rate",
+        back_populates="user"
+    )
+
 
     @property
     def password(self):

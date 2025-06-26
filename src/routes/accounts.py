@@ -49,7 +49,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
     result_email = await session.execute(stmt_email)
     user_email = result_email.scalars().first()
 
-    stmt_group = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
+    stmt_group = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
 
@@ -61,7 +61,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
 
     if not user_group:
         user_group = UserGroup(
-            name=UserGroupEnum.USER
+            name=UserGroupEnum.MODERATOR
         )
         session.add(user_group)
         await session.commit()
@@ -296,10 +296,12 @@ async def user_login(
     access = create_access_token(
         {
             "sub": str(db_user.id),
+            "role": db_user.group.name
         }
     )
     return {
         "access_token": access,
+        "role": db_user.group.name,
         "refresh_token": refresh_token.token
     }
 
@@ -393,7 +395,11 @@ async def refresh(
             detail="User not found.",
         )
 
-    new_access_token = create_access_token({"sub": str(user_id)})
+    new_access_token = create_access_token(
+        {
+            "sub": str(user_id),
+         }
+    )
 
     return AccessTokenResponse(access_token=new_access_token)
 
@@ -422,14 +428,14 @@ async def update_user(
     result = await session.execute(stmt)
     user = result.scalars().first()
 
-    stmt_group = select(UserGroup).where(UserGroup.name == schema.group)
+    stmt_group = select(UserGroup).where(UserGroup.name == current_user.id)
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
-    print(schema.group)
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if current_user.group.name != UserGroupEnum.ADMIN:
+    if user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="this function for admins")
 
     if not user_group:
