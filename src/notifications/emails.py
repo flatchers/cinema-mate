@@ -4,15 +4,7 @@ import secrets
 
 
 def send_email(to_email: str, subject: str, body: str):
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = "noreply@example.com"
-    msg["To"] = to_email
-
-    with smtplib.SMTP("smtp.example.com", 587) as server:
-        server.starttls()
-        server.login("user@example.com", "password")
-        server.send_message(msg)
+    print(f"[DEBUG] Sending email to {to_email} with subject '{subject}' and body:\n{body}")
 
 
 def generate_token():

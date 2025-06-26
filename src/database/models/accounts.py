@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 import hashlib
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Boolean, Date, DateTime, func, text
@@ -35,7 +35,13 @@ class UserGroup(Base):
     users: Mapped[List["UserModel"]] = relationship("UserModel", back_populates="group")
 
 
+if TYPE_CHECKING:
+    from src.database.models.movies import Movie, MovieLikeUserModel, MoviesCommentUserModel, Comment, Rate
+
+
 class UserModel(Base):
+    from src.database.models.movies import Movie
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -51,6 +57,20 @@ class UserModel(Base):
         server_default=func.current_timestamp(),
         onupdate=func.current_timestamp()
     )
+    like_movies: Mapped[List[Movie]] = relationship(
+        "Movie",
+        secondary="movie_like_users",
+        back_populates="like_users"
+    )
+    comments: Mapped[List["Comment"]] = relationship(
+        "Comment",
+        back_populates="user"
+    )
+    favourite_movies: Mapped[List[Movie]] = relationship(
+        "Movie",
+        secondary="movie_favourite_users",
+        back_populates="favourite_users"
+    )
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="users")
     profile: Mapped["UserProfileModel"] = relationship("UserProfileModel", back_populates="user")
@@ -65,6 +85,11 @@ class UserModel(Base):
         "RefreshTokenModel",
         back_populates="user"
     )
+    rates: Mapped[List["Rate"]] = relationship(
+        "Rate",
+        back_populates="user"
+    )
+
 
     @property
     def password(self):
