@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi_filter import FilterDepends
-from sqlalchemy import select, Result, func
+from sqlalchemy import select, Result, func, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -122,6 +122,67 @@ async def film_create(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"error: {str(e)}")
+
+
+@router.patch("/update/{movie_id}/")
+async def movie_update(
+        movie_id: int,
+        schema: MovieUpdate,
+        current_user = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt_movie = select(Movie).where(
+        Movie.id == movie_id
+    )
+    result: Result = await db.execute(stmt_movie)
+    movie = result.scalars().first()
+
+    stmt_user = select(UserModel).where(UserModel.id == current_user.id)
+    result_user: Result = await db.execute(stmt_user)
+    user = result_user.scalars().first()
+
+    if user.group.name != UserGroupEnum.MODERATOR:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
+
+    trash_values = {None}
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+    for field, value in schema.model_dump(exclude_unset=True).items():
+        if value in trash_values:
+            continue
+        setattr(movie, field, value)
+    await db.commit()
+    await db.refresh(movie)
+    return {"new movie": movie}
+
+
+@router.delete("/delete/{movie_id}")
+async def movie_delete(
+        movie_id: int,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt_movie = select(Movie).where(Movie.id == movie_id)
+    result: Result = await db.execute(stmt_movie)
+    movie = result.scalars().first()
+
+    stmt_user = select(UserModel).where(UserModel.id == current_user.id)
+    result: Result = await db.execute(stmt_user)
+    user = result.scalars().first()
+
+    if user.group.name != UserGroupEnum.MODERATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access forbidden for {user.group.name}: insufficient permissions."
+        )
+
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="movie not found")
+
+    await db.delete(movie)
+    await db.commit()
+
+    return "Movie deleted successfully"
 
 
 @router.get("/lists/", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
@@ -410,175 +471,3 @@ async def rate(
     await db.commit()
     await db.refresh(rate)
     return {"message": f"updated rate - {rate.rate}"}
-
-
-# @router.patch("/update/{movie_id}/")
-# async def film_update(
-#         movie_id: int,
-#         schema: MovieCreateSchema,
-#         current_user: UserModel = Depends(get_current_user),
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
-#     result_user: Result = await db.execute(stmt_user)
-#     user = result_user.scalars().first()
-#
-#     # if user.group.name != UserGroupEnum.MODERATOR:
-#     #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
-#
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not authorized.")
-#
-#     stmt_movie = (select(Movie).where(Movie.id == movie_id).options(
-#         selectinload(Movie.genres),
-#         selectinload(Movie.directors),
-#         selectinload(Movie.stars),
-#         selectinload(Movie.certification),
-#     )
-#     )
-#     result_movie = await db.execute(stmt_movie)
-#     movie = result_movie.scalars().first()
-#
-#     if not movie:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="movie not found")
-#
-#     genre_list = []
-#     for genre_name in schema.genres:
-#         stmt_genres = select(Genre).where(Genre.name == genre_name)
-#         result: Result = await db.execute(stmt_genres)
-#         genre = result.scalars().first()
-#         if not genre:
-#             genre = Genre(name=genre_name)
-#             db.add(genre)
-#             await db.flush()
-#         genre_list.append(genre)
-#
-#     director_list = []
-#     for directors_name in schema.directors:
-#         stmt_director = select(Director).where(Director.name == directors_name)
-#         result: Result = await db.execute(stmt_director)
-#         director = result.scalars().first()
-#
-#         if not director:
-#             director = Director(name=directors_name)
-#             db.add(director)
-#             await db.flush()
-#
-#         director_list.append(director)
-#
-#     star_list = []
-#     for star_name in schema.stars:
-#         stmt_star = select(Star).where(Star.name == star_name)
-#         result: Result = await db.execute(stmt_star)
-#         star = result.scalars().first()
-#
-#         if not star:
-#             star = Star(name=star_name)
-#             db.add(star)
-#             await db.flush()
-#         star_list.append(star)
-#
-#     stmt_cert = select(Certification).where(Certification.name == schema.certification)
-#     result_cert: Result = await db.execute(stmt_cert)
-#     certification = result_cert.scalars().first()
-#
-#     if not certification:
-#         certification = Certification(name=schema.certification)
-#         db.add(certification)
-#         await db.flush()
-#     if schema.name is not None:
-#         movie.name = schema.name
-#     if schema.name is None:
-#         movie.name = movie.name
-#
-#     if schema.year is not None:
-#         movie.year = schema.year
-#     if schema.year is None:
-#         movie.year = movie.year
-#
-#     if schema.time is not None:
-#         movie.time = schema.time
-#     if schema.time is None:
-#         movie.time = movie.time
-#
-#     if schema.imdb is not None:
-#         movie.imdb = schema.imdb
-#     if schema.imdb is None:
-#         movie.imdb = movie.imdb
-#
-#     if schema.votes is not None:
-#         movie.votes = schema.votes
-#     if schema.votes is None:
-#         movie.votes = movie.votes
-#
-#     if schema.meta_score is not None:
-#         movie.meta_score = schema.meta_score
-#     if schema.meta_score is None:
-#         movie.meta_score = movie.meta_score
-#
-#     if schema.gross is not None:
-#         movie.gross = schema.gross
-#     if schema.gross is None:
-#         movie.gross = movie.gross
-#
-#     if schema.description is not None:
-#         movie.description = schema.description
-#     if schema.description is None:
-#         movie.description = movie.description
-#
-#     if schema.price is not None:
-#         movie.price = schema.price
-#     if schema.price is None:
-#         movie.price = movie.price
-#
-#     if schema.certification is not None:
-#         movie.certification = certification
-#     if schema.certification is None:
-#         movie.certification = movie.certification
-#
-#     if schema.genres is not None:
-#         movie.genres = genre_list
-#     if schema.genres is None:
-#         movie.genres = movie.genres
-#
-#     if schema.directors is not None:
-#         movie.directors = director_list
-#     if schema.directors is None:
-#         movie.directors = movie.directors
-#
-#     if schema.stars is not None:
-#         movie.stars = star_list
-#     if schema.stars is None:
-#         movie.stars = movie.stars
-#     await db.commit()
-#     await db.refresh(movie,
-#     [
-#         "genres",
-#         "directors",
-#         "stars",
-#         "certification",
-#     ],)
-#     return {"message": "Successful updated"}
-
-@router.patch("/update/{movie_id}/")
-async def movie_update(
-        movie_id: int,
-        schema: MovieUpdate,
-        current_user: UserModel = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
-):
-    stmt_movie = select(Movie).where(
-        Movie.id == movie_id
-    )
-    result: Result = await db.execute(stmt_movie)
-    movie = result.scalars().first()
-    TRASH_VALUES = {None}
-    if not movie:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
-    for field, value in schema.model_dump(exclude_unset=True).items():
-        if value in TRASH_VALUES:
-            continue
-        setattr(movie, field, value)
-    await db.commit()
-    await db.refresh(movie)
-    return {"new movie": movie}
