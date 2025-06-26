@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, ActivationTokenModel, \
     PasswordResetTokenModel, RefreshTokenModel
@@ -17,7 +18,6 @@ from src.notifications.send_email.send_password_reset_email import send_password
 from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest, \
     TokenResetPasswordRequest, UserLoginRequest, UserLoginResponse, TokenResetPasswordCompleteRequest, MessageResponse, \
     AccessTokenResponse, RefreshTokenRequest, AdminUpdateRequest
-from src.security.permissions import permission_admin_change_role
 from src.security.token_manipulation import create_refresh_token, create_access_token, get_current_user, \
     authenticate_user, get_user_token, decode_token
 from src.security.validations import verify_password, password_validator_func, password_hash_pwd
@@ -49,7 +49,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
     result_email = await session.execute(stmt_email)
     user_email = result_email.scalars().first()
 
-    stmt_group = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
+    stmt_group = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
 
@@ -61,7 +61,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
 
     if not user_group:
         user_group = UserGroup(
-            name=UserGroupEnum.USER
+            name=UserGroupEnum.MODERATOR
         )
         session.add(user_group)
         await session.commit()
@@ -260,7 +260,7 @@ async def user_login(
     email = form_data.username
     password = form_data.password
 
-    stmt_user = select(UserModel).where(UserModel.email == email)
+    stmt_user = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.email == email)
     result_user = await session.execute(stmt_user)
     db_user = result_user.scalars().first()
 
@@ -270,7 +270,7 @@ async def user_login(
             detail="Invalid email or password"
         )
 
-    if not db_user.is_active or not db_user.verify_password_pwd(password):
+    if not db_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is not activated.",
@@ -293,9 +293,15 @@ async def user_login(
             detail=f"An error occurred during user creation. -- {e}"
         )
 
-    access = create_access_token({"sub": str(db_user.id)})
+    access = create_access_token(
+        {
+            "sub": str(db_user.id),
+            "role": db_user.group.name
+        }
+    )
     return {
         "access_token": access,
+        "role": db_user.group.name,
         "refresh_token": refresh_token.token
     }
 
@@ -389,13 +395,22 @@ async def refresh(
             detail="User not found.",
         )
 
-    new_access_token = create_access_token({"sub": str(user_id)})
+    new_access_token = create_access_token(
+        {
+            "sub": str(user_id),
+         }
+    )
 
     return AccessTokenResponse(access_token=new_access_token)
 
 
 @router.post("update/{user_id}/", response_model=MessageResponse, status_code=status.HTTP_200_OK)
-async def update_user(user_id: int, schema: AdminUpdateRequest, session: AsyncSession = Depends(get_db)):
+async def update_user(
+        user_id: int,
+        schema: AdminUpdateRequest,
+        session: AsyncSession = Depends(get_db),
+        current_user: UserModel = Depends(get_current_user)
+):
 
     """
     User Update
@@ -405,6 +420,7 @@ async def update_user(user_id: int, schema: AdminUpdateRequest, session: AsyncSe
     :param user_id: indicates the user id that will be changed
     :param schema: schema for input for updating
     :param session: query to database
+    :param current_user: current user
     :return: message
     """
 
@@ -412,14 +428,14 @@ async def update_user(user_id: int, schema: AdminUpdateRequest, session: AsyncSe
     result = await session.execute(stmt)
     user = result.scalars().first()
 
-    stmt_group = select(UserGroup).where(UserGroup.name == schema.group)
+    stmt_group = select(UserGroup).where(UserGroup.name == current_user.id)
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user_group.name != UserGroupEnum.ADMIN:
+    if user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="this function for admins")
 
     if not user_group:
@@ -430,12 +446,22 @@ async def update_user(user_id: int, schema: AdminUpdateRequest, session: AsyncSe
         await session.flush()
         user.group_id = user_group.id
         await session.commit()
-        await session.refresh(user_group)
+        await session.refresh(user)
 
     user.group_id = user_group.id
     user.is_active = schema.is_active
     await session.commit()
 
     return {
-        "message": f"Successful updated {user.group.name}, {user.group_id}",
+        "message": f"Successful updated user_id {user.id}: {user.group.name}, {user.group_id}",
     }
+
+
+@router.get("/info/")
+async def user_info(user_id: int, session: AsyncSession = Depends(get_db)):
+
+    stmt = select(UserModel).where(UserModel.id == user_id)
+    result = await session.execute(stmt)
+    user = result.scalars().first()
+
+    return {"user": user}
