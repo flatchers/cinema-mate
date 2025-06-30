@@ -5,7 +5,7 @@ from sqlalchemy import Integer, String, Table, Column, ForeignKey, DECIMAL
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
-
+from src.database.models.shopping_cart import CartItemsModel
 
 MovieGenreModel = Table(
     "movie_genres",
@@ -172,6 +172,7 @@ class Movie(Base):
         "Rate",
         back_populates="movie"
     )
+    cart_items: Mapped[list["CartItemsModel"]] = relationship("CartItemsModel", back_populates="movie")
 
     __table_args__ = (
         UniqueConstraint("name", "year", "time"),
