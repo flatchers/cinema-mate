@@ -103,6 +103,7 @@ class Comment(Base):
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="comments")
     movie_id = mapped_column(ForeignKey("movies.id"))
     movie: Mapped["Movie"] = relationship("Movie", back_populates="comments")
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="comment")
 
 
 class Rate(Base):
