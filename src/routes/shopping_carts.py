@@ -6,6 +6,7 @@ from starlette import status
 
 from src.database.models import UserModel, Movie, CartItemsModel, CartModel
 from src.database.session_sqlite import get_db
+from src.schemas.shopping_carts import MovieOut, MovieListResponse
 from src.security.token_manipulation import get_current_user
 
 router = APIRouter()
@@ -82,7 +83,7 @@ async def remove_cart_item(
     return "Movie deleted from cart successfully"
 
 
-@router.get("/list/")
+@router.get("/list/", response_model=MovieListResponse)
 async def cart_list(
         current_user: UserModel = Depends(get_current_user),
         session: AsyncSession = Depends(get_db)
@@ -94,11 +95,27 @@ async def cart_list(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    stmt = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user.id)
+    stmt = (
+        select(CartModel)
+        .options(selectinload(CartModel.cart_items)
+                 .selectinload(CartItemsModel.movie)
+                 .selectinload(Movie.genres))
+        .where(CartModel.user_id == user.id)
+    )
     result: Result = await session.execute(stmt)
-    carts = result.scalars().all()
+    carts = result.scalars().first()
 
     if not carts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="list is empty")
 
-    return carts
+    movie_list = []
+    for i in carts.cart_items:
+        movie = i.movie
+        movie_list.append(MovieOut(
+            title=movie.name,
+            price=movie.price,
+            genres=[genre.name for genre in movie.genres],
+            year=movie.year
+        ))
+
+    return MovieListResponse(movies=movie_list)
