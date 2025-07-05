@@ -80,3 +80,25 @@ async def remove_cart_item(
     await session.commit()
 
     return "Movie deleted from cart successfully"
+
+
+@router.get("/list/")
+async def cart_list(
+        current_user: UserModel = Depends(get_current_user),
+        session: AsyncSession = Depends(get_db)
+):
+    stmt = select(UserModel).where(UserModel.id == current_user.id)
+    result: Result = await session.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    stmt = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user.id)
+    result: Result = await session.execute(stmt)
+    carts = result.scalars().all()
+
+    if not carts:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="list is empty")
+
+    return carts
