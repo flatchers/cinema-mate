@@ -20,7 +20,6 @@ async def add_cart_item(
     stmt = select(UserModel).options(selectinload(UserModel.cart)).where(UserModel.id == current_user.id)
     result: Result = await session.execute(stmt)
     user = result.scalars().first()
-    # user = await session.get(UserModel, current_user.id)
 
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -39,7 +38,7 @@ async def add_cart_item(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
 
     stmt = select(CartItemsModel).where(
-        CartItemsModel.id == cart.id,
+        CartItemsModel.cart_id == cart.id,
         CartItemsModel.movie_id == movie_id
     )
     existing = await session.execute(stmt)
@@ -57,6 +56,27 @@ async def add_cart_item(
     return cart_item
 
 
+@router.delete("/{cart_item_id}/delete/")
+async def remove_cart_item(
+        cart_item_id: int,
+        current_user: UserModel = Depends(get_current_user),
+        session: AsyncSession = Depends(get_db)
+):
+    stmt = select(UserModel).where(UserModel.id == current_user.id)
+    result: Result = await session.execute(stmt)
+    user = result.scalars().first()
 
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    stmt = select(CartItemsModel).where(CartItemsModel.cart_id == cart_item_id)
+    result: Result = await session.execute(stmt)
+    cart_item = result.scalars().first()
 
+    if not cart_item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+
+    await session.delete(cart_item)
+    await session.commit()
+
+    return "Movie deleted from cart successfully"
