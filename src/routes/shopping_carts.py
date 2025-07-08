@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models import UserModel, Movie, CartItemsModel, CartModel
+from src.database.models.accounts import UserGroupEnum
 from src.database.session_sqlite import get_db
 from src.schemas.shopping_carts import MovieOut, MovieListResponse
 from src.security.token_manipulation import get_current_user
@@ -70,7 +71,7 @@ async def remove_cart_item(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    stmt = select(CartItemsModel).where(CartItemsModel.cart_id == cart_item_id)
+    stmt = select(CartItemsModel).where(CartItemsModel.movie_id == cart_item_id)
     result: Result = await session.execute(stmt)
     cart_item = result.scalars().first()
 
@@ -119,3 +120,25 @@ async def cart_list(
         ))
 
     return MovieListResponse(movies=movie_list)
+
+
+@router.get("/{user_id}/detail/")
+async def items_list(
+        user_id: int,
+        current_user: UserModel = Depends(get_current_user),
+        session: AsyncSession = Depends(get_db),
+):
+    stmt = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.id == current_user.id)
+    result: Result = await session.execute(stmt)
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not user.group.name != UserGroupEnum.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This function for admins")
+
+    stmt = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user_id)
+    result: Result = await session.execute(stmt)
+    purpose_user = result.scalars().all()
+
+    return purpose_user
