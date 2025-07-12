@@ -5,7 +5,8 @@ from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models import UserModel, Movie, CartItemsModel, CartModel
-from src.database.models.accounts import UserGroupEnum
+from src.database.models.accounts import UserGroupEnum, UserGroup
+from src.database.models.shopping_cart import NotificationDeleteModel
 from src.database.session_sqlite import get_db
 from src.schemas.shopping_carts import MovieOut, MovieListResponse
 from src.security.token_manipulation import get_current_user
@@ -78,7 +79,21 @@ async def remove_cart_item(
     if not cart_item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
 
+    stmt = select(UserModel).join(UserModel.group).where(user.group == UserGroupEnum.MODERATOR)
+    result: Result = await session.execute(stmt)
+    moderator_user = result.scalars().all()
+
     await session.delete(cart_item)
+    await session.flush()
+
+    for mod in moderator_user:
+        notif = NotificationDeleteModel(
+            id=mod.id,
+            cart_items_id=cart_item.id,
+            comment=f"user {user.email} with id {user.id} deleted item {cart_item}",
+        )
+        session.add(notif)
+
     await session.commit()
 
     return "Movie deleted from cart successfully"
@@ -123,7 +138,7 @@ async def cart_list(
 
 
 @router.get("/{user_id}/detail/")
-async def items_list(
+async def items_detail(
         user_id: int,
         current_user: UserModel = Depends(get_current_user),
         session: AsyncSession = Depends(get_db),
