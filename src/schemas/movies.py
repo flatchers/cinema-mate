@@ -148,4 +148,3 @@ class MovieUpdate(BaseModel):
 
     class Config:
         from_attributes: bool = True
-

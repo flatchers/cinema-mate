@@ -1,8 +1,8 @@
-"""Initial clean state
+"""initial
 
-Revision ID: 5746292a00f8
+Revision ID: 04e28e34bd10
 Revises: 
-Create Date: 2025-05-24 10:40:36.601854
+Create Date: 2025-07-09 17:21:55.054236
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1568dd63d9cd'
+revision: str = '04e28e34bd10'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -91,12 +91,35 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
+    op.create_table('carts',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('user_id')
+    )
+    op.create_table('comment',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('comment', sa.String(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('movie_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('movie_directors',
     sa.Column('director_id', sa.Integer(), nullable=False),
     sa.Column('movie_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['director_id'], ['directors.id'], ),
     sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ),
     sa.PrimaryKeyConstraint('director_id', 'movie_id')
+    )
+    op.create_table('movie_favourite_users',
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('movie_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('user_id', 'movie_id')
     )
     op.create_table('movie_genres',
     sa.Column('movie_id', sa.Integer(), nullable=False),
@@ -128,6 +151,16 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
+    op.create_table('rate',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('rate', sa.Float(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('movie_id', sa.Integer(), nullable=False),
+    sa.CheckConstraint('rate >= 1.0 AND rate <= 10.0', name='rate_between_1_and_10'),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('refresh_tokens',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('token', sa.String(length=512), nullable=False),
@@ -150,19 +183,62 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('user_id')
     )
+    op.create_table('cart_items',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('cart_id', sa.Integer(), nullable=False),
+    sa.Column('movie_id', sa.Integer(), nullable=False),
+    sa.Column('added_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['cart_id'], ['carts.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('cart_id', 'movie_id')
+    )
+    op.create_table('notification',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('comment_id', sa.Integer(), nullable=True),
+    sa.Column('message', sa.String(), nullable=False),
+    sa.Column('is_read', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['comment_id'], ['comment.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('notifications_delete',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('cart_items_id', sa.Integer(), nullable=False),
+    sa.Column('comment', sa.String(), nullable=False),
+    sa.ForeignKeyConstraint(['cart_items_id'], ['cart_items.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('notification_moderators',
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('notifications_delete_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['notifications_delete_id'], ['notifications_delete.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('user_id', 'notifications_delete_id')
+    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('notification_moderators')
+    op.drop_table('notifications_delete')
+    op.drop_table('notification')
+    op.drop_table('cart_items')
     op.drop_table('user_profile')
     op.drop_table('refresh_tokens')
+    op.drop_table('rate')
     op.drop_table('password_reset_tokens')
     op.drop_table('movie_stars')
     op.drop_table('movie_like_users')
     op.drop_table('movie_genres')
+    op.drop_table('movie_favourite_users')
     op.drop_table('movie_directors')
+    op.drop_table('comment')
+    op.drop_table('carts')
     op.drop_table('activation_tokens')
     op.drop_table('users')
     op.drop_table('movies')
