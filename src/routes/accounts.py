@@ -49,7 +49,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
     result_email = await session.execute(stmt_email)
     user_email = result_email.scalars().first()
 
-    stmt_group = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    stmt_group = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
 
@@ -61,7 +61,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
 
     if not user_group:
         user_group = UserGroup(
-            name=UserGroupEnum.MODERATOR
+            name=UserGroupEnum.USER
         )
         session.add(user_group)
         await session.commit()
@@ -107,7 +107,10 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
     :return: message
     """
 
-    stmt_token = select(ActivationTokenModel).where(ActivationTokenModel.token == schema.token)
+    stmt_token = select(ActivationTokenModel).join(UserModel).where(
+        ActivationTokenModel.token == schema.token,
+        UserModel.email == schema.email
+    )
     result_token = await session.execute(stmt_token)
     activ_token = result_token.scalars().first()
 
@@ -121,6 +124,8 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered")
     if user.is_active:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You are already active")
+    if schema.token != activ_token.token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered")
 
     user.is_active = True
     await session.commit()
@@ -404,7 +409,7 @@ async def refresh(
     return AccessTokenResponse(access_token=new_access_token)
 
 
-@router.post("update/{user_id}/", response_model=MessageResponse, status_code=status.HTTP_200_OK)
+@router.post("/update/{user_id}/", response_model=MessageResponse, status_code=status.HTTP_200_OK)
 async def update_user(
         user_id: int,
         schema: AdminUpdateRequest,
@@ -424,19 +429,28 @@ async def update_user(
     :return: message
     """
 
-    stmt = select(UserModel).where(UserModel.id == user_id)
+    stmt = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.id == user_id)
     result = await session.execute(stmt)
     user = result.scalars().first()
 
-    stmt_group = select(UserGroup).where(UserGroup.name == current_user.id)
+    stmt = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.id == current_user.id)
+    result = await session.execute(stmt)
+    now_user = result.scalars().first()
+
+    stmt_group = select(UserGroup).where(UserGroup.name == schema.group)
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.group.name != UserGroupEnum.ADMIN:
+    if now_user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="this function for admins")
+
+    if user.group.name == schema.group:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"you try change role {user.group.name} -> {schema.group}"
+        )
 
     if not user_group:
         user_group = UserGroup(
@@ -453,7 +467,8 @@ async def update_user(
     await session.commit()
 
     return {
-        "message": f"Successful updated user_id {user.id}: {user.group.name}, {user.group_id}",
+        "message": f"Successful updated user_id {user.id}: {user.group.name}, {user.group_id} -> "
+                   f"{schema.group}",
     }
 
 
