@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
-from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment, Rate
+from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment, Rate, Notification
 from src.database.session_sqlite import get_db
 from src.querying.movie_filtering import MovieFilter
 from src.querying.movie_sorting import ItemQueryParams
@@ -39,8 +39,8 @@ async def film_create(
     result_user = await db.execute(stmt_user)
     user = result_user.scalars().first()
 
-    if user.group.name != UserGroupEnum.MODERATOR:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
+    # if user.group.name != UserGroupEnum.MODERATOR:
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
     try:
 
         cert_stmt = select(Certification).where(Certification.name == schema.certification)
@@ -471,3 +471,29 @@ async def rate(
     await db.commit()
     await db.refresh(rate)
     return {"message": f"updated rate - {rate.rate}"}
+
+
+@router.post("/notification/{comment_id}/")
+async def notification_comment(
+        comment_id: int,
+        schema: CommentSchema,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt_user = select(UserModel).where(UserModel.id == current_user.id)
+    result: Result = await db.execute(stmt_user)
+    user = result.scalars().first()
+
+    comment = await db.get(Comment, comment_id)
+    db_comment = Comment(comment=schema.comments, user_id=user.id)
+    db.add(db_comment)
+    await db.flush()
+    new_notif = Notification(
+        user_id=comment.user_id,
+        comment_id=comment.id,
+        message=f"{user.email} replied you"
+    )
+
+    db.add(new_notif)
+    await db.commit()
+    return {new_notif}
