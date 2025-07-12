@@ -1,11 +1,13 @@
-from sqlalchemy import Time, Float, Text, UniqueConstraint, CheckConstraint
+from datetime import datetime
+
+from sqlalchemy import Time, Float, Text, UniqueConstraint, CheckConstraint, Boolean, func
 from typing import List, Optional, TYPE_CHECKING
 import uuid
 from sqlalchemy import Integer, String, Table, Column, ForeignKey, DECIMAL
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
-
+from src.database.models.shopping_cart import CartItemsModel
 
 MovieGenreModel = Table(
     "movie_genres",
@@ -96,11 +98,12 @@ class Comment(Base):
     __tablename__ = "comment"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    comment: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    comment: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="comments")
     movie_id = mapped_column(ForeignKey("movies.id"))
     movie: Mapped["Movie"] = relationship("Movie", back_populates="comments")
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="comment")
 
 
 class Rate(Base):
@@ -172,7 +175,22 @@ class Movie(Base):
         "Rate",
         back_populates="movie"
     )
+    cart_items: Mapped[list["CartItemsModel"]] = relationship("CartItemsModel", back_populates="movie")
 
     __table_args__ = (
         UniqueConstraint("name", "year", "time"),
     )
+
+
+class Notification(Base):
+    __tablename__ = "notification"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comment.id", ondelete="CASCADE"), nullable=True)
+    message: Mapped[str] = mapped_column()
+    is_read: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="notifications")
+    comment: Mapped["Comment"] = relationship("Comment", back_populates="notifications")
