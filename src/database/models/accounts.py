@@ -6,7 +6,7 @@ import hashlib
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Boolean, Date, DateTime, func, text
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from src.database.models.base import Base
-from src.database.models.shopping_cart import CartModel
+from src.database.models.shopping_cart import CartModel, NotificationDeleteModel, NotificationModeratorsModel
 from src.security import validations
 from src.security.utils import generate_token
 from src.security.validations import password_hash_pwd, verify_password
@@ -67,10 +67,15 @@ class UserModel(Base):
         "Comment",
         back_populates="user"
     )
-    favourite_movies: Mapped[List[Movie]] = relationship(
+    favourite_movies: Mapped[List["Movie"]] = relationship(
         "Movie",
         secondary="movie_favourite_users",
         back_populates="favourite_users"
+    )
+    notifications_delete: Mapped[List["NotificationDeleteModel"]] = relationship(
+        "NotificationDeleteModel",
+        secondary=NotificationModeratorsModel,
+        back_populates="users"
     )
     cart: Mapped["CartModel"] = relationship("CartModel", back_populates="user", uselist=False)
     notifications: Mapped["Notification"] = relationship("Notification", back_populates="user")
@@ -92,7 +97,6 @@ class UserModel(Base):
         "Rate",
         back_populates="user"
     )
-
 
     @property
     def password(self):
