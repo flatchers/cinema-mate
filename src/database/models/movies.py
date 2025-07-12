@@ -98,7 +98,7 @@ class Comment(Base):
     __tablename__ = "comment"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    comment: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    comment: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="comments")
     movie_id = mapped_column(ForeignKey("movies.id"))
@@ -187,7 +187,7 @@ class Notification(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comment.id", ondelete="CASCADE"), nullable=True)
     message: Mapped[str] = mapped_column()
     is_read: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(default=func.now())
