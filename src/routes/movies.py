@@ -39,8 +39,8 @@ async def film_create(
     result_user = await db.execute(stmt_user)
     user = result_user.scalars().first()
 
-    # if user.group.name != UserGroupEnum.MODERATOR:
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
+    if user.group.name != UserGroupEnum.MODERATOR:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: insufficient permissions.")
     try:
 
         cert_stmt = select(Certification).where(Certification.name == schema.certification)
