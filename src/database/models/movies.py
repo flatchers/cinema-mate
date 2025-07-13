@@ -7,7 +7,6 @@ from sqlalchemy import Integer, String, Table, Column, ForeignKey, DECIMAL
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.base import Base
-from src.database.models.order import OrderItemModel
 from src.database.models.shopping_cart import CartItemsModel
 
 MovieGenreModel = Table(
@@ -124,6 +123,7 @@ class Rate(Base):
 
 if TYPE_CHECKING:
     from src.database.models.accounts import UserModel
+    from src.database.models.order import OrderItemModel
 
 
 class Movie(Base):

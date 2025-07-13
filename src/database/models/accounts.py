@@ -79,7 +79,7 @@ class UserModel(Base):
         back_populates="users"
     )
     cart: Mapped["CartModel"] = relationship("CartModel", back_populates="user", uselist=False)
-    orders: Mapped["OrderModel"] = relationship("OrderModel", back_populates="user")
+    orders: Mapped[list["OrderModel"]] = relationship("OrderModel", back_populates="user")
     notifications: Mapped["Notification"] = relationship("Notification", back_populates="user")
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="users")

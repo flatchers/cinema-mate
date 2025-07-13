@@ -1,10 +1,10 @@
 from datetime import datetime
 import enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Integer, ForeignKey, func, Enum, DECIMAL
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
-from src.database.models import UserModel, Movie
 from src.database.models.base import Base
 
 
@@ -12,6 +12,11 @@ class StatusEnum(str, enum.Enum):
     PENDING = "PENDING"
     PAID = "PAID"
     CANCELED = "CANCELED"
+
+
+if TYPE_CHECKING:
+    from src.database.models.accounts import UserModel
+    from src.database.models.movies import Movie
 
 
 class OrderModel(Base):
