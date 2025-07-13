@@ -21,7 +21,7 @@ class OrderModel(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="orders")
-    order_items: Mapped["OrderItemModel"] = relationship("OrderItemModel", back_populates="order")
+    order_items: Mapped[list["OrderItemModel"]] = relationship("OrderItemModel", back_populates="order")
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     status: Mapped[StatusEnum] = mapped_column(
         Enum(StatusEnum),
