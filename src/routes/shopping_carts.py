@@ -83,16 +83,16 @@ async def remove_cart_item(
     result: Result = await session.execute(stmt)
     moderator_user = result.scalars().all()
 
-    await session.delete(cart_item)
-    await session.flush()
+    cart_item_id = cart_item.id
 
-    for mod in moderator_user:
-        notif = NotificationDeleteModel(
-            id=mod.id,
-            cart_items_id=cart_item.id,
-            comment=f"user {user.email} with id {user.id} deleted item {cart_item}",
-        )
-        session.add(notif)
+    await session.delete(cart_item)
+
+    notif = NotificationDeleteModel(
+        cart_items_id=cart_item_id,
+        comment=f"user {user.email} with id {user.id} deleted item {cart_item}",
+    )
+    notif.users.extend(moderator_user)
+    session.add(notif)
 
     await session.commit()
 
