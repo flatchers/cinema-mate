@@ -82,3 +82,23 @@ async def create_order(
         )
 
     return {"response": "Order created successfully"}
+
+
+@router.get("/list/", response_model=List[OrderSchemaResponse])
+async def order_list(
+        db: AsyncSession = Depends(get_db),
+        current_user: UserModel = Depends(get_current_user)
+):
+    stmt = select(OrderModel).options(selectinload(OrderModel.order_items)).where(OrderModel.user_id == current_user.id)
+    result: Result = await db.execute(stmt)
+    orders = result.scalars().all()
+
+    return [
+        OrderSchemaResponse(
+            created_at=order.created_at,
+            count_films=len(order.order_items),
+            total_amount=order.total_amount,
+            status=order.status
+        )
+        for order in orders
+    ]
