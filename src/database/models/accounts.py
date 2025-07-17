@@ -6,6 +6,7 @@ import hashlib
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Boolean, Date, DateTime, func, text
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from src.database.models.base import Base
+from src.database.models.order import OrderModel
 from src.database.models.shopping_cart import CartModel, NotificationDeleteModel, NotificationModeratorsModel
 from src.security import validations
 from src.security.utils import generate_token
@@ -78,6 +79,7 @@ class UserModel(Base):
         back_populates="users"
     )
     cart: Mapped["CartModel"] = relationship("CartModel", back_populates="user", uselist=False)
+    orders: Mapped[list["OrderModel"]] = relationship("OrderModel", back_populates="user")
     notifications: Mapped["Notification"] = relationship("Notification", back_populates="user")
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="users")

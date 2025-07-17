@@ -123,6 +123,7 @@ class Rate(Base):
 
 if TYPE_CHECKING:
     from src.database.models.accounts import UserModel
+    from src.database.models.order import OrderItemModel
 
 
 class Movie(Base):
@@ -176,6 +177,7 @@ class Movie(Base):
         back_populates="movie"
     )
     cart_items: Mapped[list["CartItemsModel"]] = relationship("CartItemsModel", back_populates="movie")
+    order_items: Mapped[list["OrderItemModel"]] = relationship("OrderItemModel", back_populates="movie")
 
     __table_args__ = (
         UniqueConstraint("name", "year", "time"),
