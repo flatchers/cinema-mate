@@ -1,12 +1,12 @@
 from datetime import datetime
 import enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy import Integer, ForeignKey, func, Enum, DECIMAL
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from src.database.models.base import Base
-from src.database.models.payments import PaymentModel
+from src.database.models.payments import PaymentModel, PaymentItemModel
 
 
 class StatusEnum(str, enum.Enum):
@@ -40,7 +40,7 @@ class OrderModel(Base):
         server_default=StatusEnum.PENDING
     )
     total_amount: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2))
-    payments: Mapped["PaymentModel"] = relationship("PaymentModel", back_populates="order")
+    payments: Mapped[List["PaymentModel"]] = relationship("PaymentModel", back_populates="order")
 
 
 class OrderItemModel(Base):
@@ -53,3 +53,4 @@ class OrderItemModel(Base):
 
     order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="order_items")
     movie: Mapped["Movie"] = relationship("Movie", back_populates="order_items")
+    payment_items: Mapped[List["PaymentItemModel"]] = relationship("PaymentItemModel", back_populates="order_item")
