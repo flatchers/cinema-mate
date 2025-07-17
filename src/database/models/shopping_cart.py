@@ -47,7 +47,7 @@ class NotificationDeleteModel(Base):
     __tablename__ = "notifications_delete"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cart_items_id: Mapped[int] = mapped_column(ForeignKey("cart_items.id", ondelete="CASCADE"), nullable=False)
+    cart_items_id: Mapped[int] = mapped_column(ForeignKey("cart_items.id", ondelete="CASCADE"), nullable=True)
 
     comment: Mapped[str] = mapped_column()
     users: Mapped[List["UserModel"]] = relationship(
