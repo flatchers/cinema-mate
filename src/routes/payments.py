@@ -125,3 +125,81 @@ async def successful_payment():
 @router.get("/cancel/")
 async def cancel_payment():
     return {"response": "payment failed"}
+
+
+@router.post("/webhook/")
+async def my_webhook_view(
+        request: Request,
+        db: AsyncSession = Depends(get_db)
+):
+    payload = await request.body()
+    event = None
+
+    try:
+        event = stripe.Event.construct_from(
+            json.loads(payload), stripe.api_key
+        )
+    except ValueError as e:
+        # Invalid payload
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error: {e}")
+
+    if WEBHOOK_ENDPOINT_SECRET:
+        # Only verify the event if you've defined an endpoint secret
+        # Otherwise, use the basic event deserialized with JSON
+        sig_header = request.headers.get('stripe-signature')
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, WEBHOOK_ENDPOINT_SECRET
+            )
+        except stripe.error.SignatureVerificationError as e:
+            print('⚠️  Webhook signature verification failed.' + str(e))
+            return JSONResponse(status_code=400, content={"success": False})
+
+    # Handle the event
+    if event.type == "payment_intent.succeeded":
+        payment_intent = event.data.object  # contains a stripe.PaymentIntent
+        payment_id = payment_intent["id"]
+        stmt = (select(PaymentModel)
+                .options(selectinload(PaymentModel.user)).
+                where(PaymentModel.external_payment_id == payment_id)
+                )
+        result: Result = await db.execute(stmt)
+        payment = result.scalars().first()
+
+        if payment:
+            payment.status = PaymentStatus.SUCCESSFUL
+            payment.order.status = StatusEnum.PAID
+            send_payment_confirmation_email(payment.user.email)
+            await db.commit()
+
+        print(f"✅ PaymentIntent succeeded: {payment_intent['id']}")
+    # Then define and call a method to handle the successful payment intent.
+    # handle_payment_intent_succeeded(payment_intent)
+    elif event.type == "payment_intent.canceled":
+        payment_intent = event.data.object
+        payment_id = payment_intent["id"]
+        cancellation_reason = payment_intent.get("cancellation_reason", "unspecified")
+        stmt = (select(PaymentModel)
+                .options(selectinload(PaymentModel.user))
+                .options(selectinload(PaymentModel.order))
+                .where(PaymentModel.external_payment_id == payment_id)
+                )
+        result: Result = await db.execute(stmt)
+        payment = result.scalars().first()
+
+        if payment:
+            payment.status = PaymentStatus.CANCELED
+            payment.order.status = StatusEnum.CANCELED
+            await db.commit()
+
+        print(f"⚠️ PaymentIntent canceled: {payment_id}, reason: {cancellation_reason}")
+        return {"status": event.type,
+                "payment_id": payment_id,
+                "reason": cancellation_reason
+                }
+
+    else:
+        print(f"⚠️ Unhandled event type: {event.type}")
+        return {"response": f"Unhandled event type: {event.type}"}
+
+    return {"response": "Successful"}
