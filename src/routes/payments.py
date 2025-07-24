@@ -25,7 +25,7 @@ router = APIRouter()
 DOMAIN = "http://127.0.0.1:8000"
 
 
-@router.post("/add/{order_id}/", status_code=status.HTTP_200_OK)
+@router.post("/add/{order_id}/", status_code=status.HTTP_201_CREATED)
 async def payment_add(
         order_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -127,7 +127,7 @@ async def cancel_payment():
     return {"response": "payment failed"}
 
 
-@router.post("/webhook/")
+@router.post("/webhook/", status_code=status.HTTP_200_OK)
 async def my_webhook_view(
         request: Request,
         db: AsyncSession = Depends(get_db)
@@ -203,3 +203,38 @@ async def my_webhook_view(
         return {"response": f"Unhandled event type: {event.type}"}
 
     return {"response": "Successful"}
+
+
+@router.post("/refund/{external_payment_id}/", status_code=status.HTTP_200_OK)
+async def payment_refund(
+        external_payment_id: str,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserModel = Depends(get_current_user)
+):
+    stmt = select(PaymentModel).where(
+        PaymentModel.user_id == current_user.id,
+        PaymentModel.external_payment_id == external_payment_id
+    )
+    result: Result = await db.execute(stmt)
+    payment = result.scalars().first()
+
+    try:
+        session = stripe.checkout.Session.retrieve(external_payment_id)
+        payment_intent_id = session.payment_intent
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to retrieve Stripe session: {str(e)}")
+
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    refund = stripe.Refund.create(
+        payment_intent=payment_intent_id,
+        amount=int(payment.amount) * 100
+    )
+    if refund.status == "succeeded":
+        payment.status = PaymentStatus.REFUNDED
+        await db.commit()
+    else:
+        raise HTTPException(status_code=400, detail="Refund failed")
+
+    return {"response": "Refund Successful"}
