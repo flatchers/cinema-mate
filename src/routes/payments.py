@@ -13,12 +13,10 @@ from src.database.models.order import StatusEnum
 from src.database.models.payments import PaymentStatus, PaymentItemModel
 from src.database.session_sqlite import get_db
 from src.notifications.send_email.send_payment_confirmation import send_payment_confirmation_email
-from src.schemas.payments import StripeRequestSchema
-from src.security import stripe_keys
-from src.security.stripe_keys import WEBHOOK_ENDPOINT_SECRET
 from src.security.token_manipulation import get_current_user
+from src.config.settings import Settings
 
-stripe.api_key = stripe_keys.STRIPE_SECRET_KEY
+stripe.api_key = Settings.STRIPE_SECRET_KEY
 
 router = APIRouter()
 
@@ -146,13 +144,13 @@ async def my_webhook_view(
         # Invalid payload
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error: {e}")
 
-    if WEBHOOK_ENDPOINT_SECRET:
+    if Settings.WEBHOOK_ENDPOINT_SECRET:
         # Only verify the event if you've defined an endpoint secret
         # Otherwise, use the basic event deserialized with JSON
         sig_header = request.headers.get('stripe-signature')
         try:
             event = stripe.Webhook.construct_event(
-                payload, sig_header, WEBHOOK_ENDPOINT_SECRET
+                payload, sig_header, Settings.WEBHOOK_ENDPOINT_SECRET
             )
         except stripe.error.SignatureVerificationError as e:
             print('⚠️  Webhook signature verification failed.' + str(e))
