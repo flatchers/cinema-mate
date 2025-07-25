@@ -57,12 +57,15 @@ async def payment_add(
     stmt = (
         select(OrderModel)
         .options(selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie))
-        .where(OrderModel.id == order_id, OrderModel.user_id == current_user.id)
+        .where(
+            OrderModel.id == order_id,
+            OrderModel.user_id == current_user.id,
+        )
     )
     result = await session.execute(stmt)
     order = result.scalars().first()
 
-    if not order:
+    if not order or order.status != StatusEnum.PENDING:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
     stmt = select(PaymentModel).where(
@@ -160,8 +163,9 @@ async def my_webhook_view(
         payment_intent = event.data.object  # contains a stripe.PaymentIntent
         payment_id = payment_intent["id"]
         stmt = (select(PaymentModel)
-                .options(selectinload(PaymentModel.user)).
-                where(PaymentModel.external_payment_id == payment_id)
+                .options(selectinload(PaymentModel.user))
+                .options(selectinload(PaymentModel.order))
+                .where(PaymentModel.external_payment_id == payment_id)
                 )
         result: Result = await db.execute(stmt)
         payment = result.scalars().first()
@@ -169,7 +173,8 @@ async def my_webhook_view(
         if payment:
             payment.status = PaymentStatus.SUCCESSFUL
             payment.order.status = StatusEnum.PAID
-            send_payment_confirmation_email(payment.user.email)
+            user = await db.get(UserModel, payment.user_id)
+            send_payment_confirmation_email(user.email)
             await db.commit()
 
         print(f"✅ PaymentIntent succeeded: {payment_intent['id']}")
@@ -189,7 +194,6 @@ async def my_webhook_view(
 
         if payment:
             payment.status = PaymentStatus.CANCELED
-            payment.order.status = StatusEnum.CANCELED
             await db.commit()
 
         print(f"⚠️ PaymentIntent canceled: {payment_id}, reason: {cancellation_reason}")
@@ -197,6 +201,26 @@ async def my_webhook_view(
                 "payment_id": payment_id,
                 "reason": cancellation_reason
                 }
+    elif event.type == "checkout.session.completed":
+        session = event.data.object
+        checkout_id = session["id"]
+        stmt = (select(PaymentModel)
+                .options(selectinload(PaymentModel.user))
+                .options(selectinload(PaymentModel.order))
+                .where(PaymentModel.external_payment_id == checkout_id)
+                )
+        result: Result = await db.execute(stmt)
+        payment = result.scalars().first()
+
+        if payment:
+            payment.status = PaymentStatus.SUCCESSFUL
+            payment.order.status = StatusEnum.PAID
+            stmt = select(UserModel).join(PaymentModel).where(UserModel.id == payment.user_id)
+            result: Result = await db.execute(stmt)
+            current_user = result.scalars().first()
+            send_payment_confirmation_email(current_user.email)
+            await db.commit()
+            print(f"✅ Checkout session completed: {checkout_id}")
 
     else:
         print(f"⚠️ Unhandled event type: {event.type}")
@@ -233,6 +257,7 @@ async def payment_refund(
     )
     if refund.status == "succeeded":
         payment.status = PaymentStatus.REFUNDED
+
         await db.commit()
     else:
         raise HTTPException(status_code=400, detail="Refund failed")
