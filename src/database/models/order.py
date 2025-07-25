@@ -6,7 +6,6 @@ from sqlalchemy import Integer, ForeignKey, func, Enum, DECIMAL
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from src.database.models.base import Base
-from src.database.models.payments import PaymentModel, PaymentItemModel
 
 
 class StatusEnum(str, enum.Enum):
@@ -18,6 +17,7 @@ class StatusEnum(str, enum.Enum):
 if TYPE_CHECKING:
     from src.database.models.accounts import UserModel
     from src.database.models.movies import Movie
+    from src.database.models.payments import PaymentModel, PaymentItemModel
 
 
 class OrderModel(Base):
