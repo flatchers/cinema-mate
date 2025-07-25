@@ -1,4 +1,4 @@
-from src.notifications.emails import send_email
+from src.notifications.sendgrid import send_email_sendgrid
 
 
 def send_payment_confirmation_email(user_email: str):
@@ -18,4 +18,4 @@ def send_payment_confirmation_email(user_email: str):
     """
     subject = "✅ Payment Confirmation"
     body = "🎉 Payment was successful"
-    send_email(user_email, subject, body)
+    send_email_sendgrid(user_email, subject, body)
