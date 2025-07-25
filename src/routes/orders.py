@@ -4,10 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, Result
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy.sql.functions import count
 from starlette import status
 
-from src.database.models import UserModel, CartItemsModel, CartModel, OrderModel, OrderItemModel, Movie
+from src.database.models import UserModel, CartItemsModel, CartModel, OrderModel, OrderItemModel
 from src.database.models.order import StatusEnum
 from src.database.session_sqlite import get_db
 from src.schemas.orders import OrderSchemaResponse
@@ -22,6 +21,7 @@ async def create_order(
         current_user: UserModel = Depends(get_current_user)
 ):
 
+    order = None
     stmt = (
         select(CartModel)
         .options(selectinload(CartModel.cart_items).selectinload(CartItemsModel.movie))
@@ -101,6 +101,7 @@ async def order_list(
 
     return [
         OrderSchemaResponse(
+            id=order.id,
             created_at=order.created_at,
             count_films=len(order.order_items),
             total_amount=order.total_amount,
