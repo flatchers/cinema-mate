@@ -1,10 +1,12 @@
 import requests
 
+from src.security.sendgrid_key import SENDGRID_API_KEY
+
 
 def send_email_sendgrid(to_email: str, subject: str, body: str):
     url = "https://api.sendgrid.com/v3/mail/send"
     headers = {
-        "Authorization": "Bearer YOUR_SENDGRID_API_KEY",
+        "Authorization": f"Bearer {SENDGRID_API_KEY}",
         "Content-Type": "application/json"
     }
     data = {
@@ -12,11 +14,12 @@ def send_email_sendgrid(to_email: str, subject: str, body: str):
             "to": [{"email": to_email}],
             "subject": subject
         }],
-        "from": {"email": "noreply@example.com"},
+        "from": {"email": "your@mail.example"},
         "content": [{
             "type": "text/plain",
             "value": body
         }]
     }
     response = requests.post(url, headers=headers, json=data)
+    print(f"[DEBUG] SendGrid response: {response.status_code} - {response.text}")
     return response.status_code
