@@ -1,12 +1,12 @@
 import requests
 
-from src.config.settings import Settings
+from src.config.settings import settings
 
 
 def send_email_sendgrid(to_email: str, subject: str, body: str):
     url = "https://api.sendgrid.com/v3/mail/send"
     headers = {
-        "Authorization": f"Bearer {Settings.SENDGRID_API_KEY}",
+        "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
         "Content-Type": "application/json"
     }
     data = {
