@@ -261,3 +261,15 @@ async def payment_refund(
         raise HTTPException(status_code=400, detail="Refund failed")
 
     return {"response": "Refund Successful"}
+
+
+@router.get("/history/", status_code=status.HTTP_200_OK)
+async def payment_list(
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt = select(PaymentModel).where(PaymentModel.user_id == current_user.id)
+    result: Result = await db.execute(stmt)
+    payments = result.scalars().all()
+
+    return {"response": payments}
