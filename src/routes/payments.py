@@ -1,18 +1,22 @@
 import json
+from typing import Optional
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi_filter import FilterDepends
 from sqlalchemy import select, DECIMAL, Result
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from starlette import status
 from starlette.responses import JSONResponse
 
 from src.database.models import UserModel, PaymentModel, OrderModel, OrderItemModel
+from src.database.models.accounts import UserGroupEnum
 from src.database.models.order import StatusEnum
 from src.database.models.payments import PaymentStatus, PaymentItemModel
 from src.database.session_sqlite import get_db
 from src.notifications.send_email.send_payment_confirmation import send_payment_confirmation_email
+from src.querying.payment_filtering import PaymentFilter
 from src.security.token_manipulation import get_current_user
 from src.config.settings import settings
 
@@ -269,6 +273,29 @@ async def payment_list(
         db: AsyncSession = Depends(get_db)
 ):
     stmt = select(PaymentModel).where(PaymentModel.user_id == current_user.id)
+    result: Result = await db.execute(stmt)
+    payments = result.scalars().all()
+
+    return {"response": payments}
+
+
+@router.get("/moderator/list/")
+async def payment_list_for_moderator(
+        payment_filter: PaymentFilter = FilterDepends(PaymentFilter),
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    stmt = select(UserModel).options(joinedload(UserModel.group)).where(UserModel.id == current_user.id)
+    result: Result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if user.group.name != UserGroupEnum.MODERATOR:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Access forbidden for {user.group.name}: insufficient permissions."
+        )
+
+    stmt = payment_filter.filter(select(PaymentModel))
     result: Result = await db.execute(stmt)
     payments = result.scalars().all()
 
