@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from starlette import status
 
 from src.database.models.accounts import UserModel
-from src.database.session_sqlite import get_db
+from src.database import get_db
 from src.schemas.accounts import UserCreate
 from src.security.validations import verify_password
 

@@ -8,9 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette import status
 
+from src.database.models import PaymentModel, OrderModel, OrderItemModel
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
 from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment, Rate, Notification
-from src.database.session_sqlite import get_db
+from src.database.models.payments import PaymentStatus
+from src.database import get_db
 from src.querying.movie_filtering import MovieFilter
 from src.querying.movie_sorting import ItemQueryParams
 from src.schemas.movies import (
@@ -128,7 +130,7 @@ async def film_create(
 async def movie_update(
         movie_id: int,
         schema: MovieUpdate,
-        current_user = Depends(get_current_user),
+        current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
     stmt_movie = select(Movie).where(
@@ -175,6 +177,26 @@ async def movie_delete(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access forbidden for {user.group.name}: insufficient permissions."
         )
+
+    stmt = (
+        select(PaymentModel)
+        .join(PaymentModel.order)
+        .join(OrderModel.order_items)
+        .join(OrderItemModel.movie)
+        .options(
+            selectinload(PaymentModel.order)
+            .selectinload(OrderModel.order_items)
+            .selectinload(OrderItemModel.movie)
+        )
+        .where(
+            OrderItemModel.movie_id == movie_id,
+            PaymentModel.status == PaymentStatus.SUCCESSFUL
+        )
+    )
+    result: Result = await db.execute(stmt)
+    payment = result.scalars().first()
+    if payment:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="current film is bought")
 
     if not movie:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="movie not found")

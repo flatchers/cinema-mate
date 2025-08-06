@@ -4,12 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, Result
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy.sql.functions import count
 from starlette import status
 
-from src.database.models import UserModel, CartItemsModel, CartModel, OrderModel, OrderItemModel, Movie
+from src.database.models import UserModel, CartItemsModel, CartModel, OrderModel, OrderItemModel
 from src.database.models.order import StatusEnum
-from src.database.session_sqlite import get_db
+from src.database import get_db
 from src.schemas.orders import OrderSchemaResponse
 from src.security.token_manipulation import get_current_user
 
@@ -22,6 +21,7 @@ async def create_order(
         current_user: UserModel = Depends(get_current_user)
 ):
 
+    order = None
     stmt = (
         select(CartModel)
         .options(selectinload(CartModel.cart_items).selectinload(CartItemsModel.movie))
@@ -77,7 +77,7 @@ async def create_order(
         str_new_films = ", ".join(new_added_films_names)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"{str_existing_films} already exist, "
+            detail=f"{str_existing_films} already exist. "
                    f"{str_new_films} was added to order")
 
     if existing_films:
@@ -101,6 +101,7 @@ async def order_list(
 
     return [
         OrderSchemaResponse(
+            id=order.id,
             created_at=order.created_at,
             count_films=len(order.order_items),
             total_amount=order.total_amount,

@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Boolean, Date,
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from src.database.models.base import Base
 from src.database.models.order import OrderModel
+from src.database.models.payments import PaymentModel
 from src.database.models.shopping_cart import CartModel, NotificationDeleteModel, NotificationModeratorsModel
 from src.security import validations
 from src.security.utils import generate_token
@@ -84,6 +85,7 @@ class UserModel(Base):
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="users")
     profile: Mapped["UserProfileModel"] = relationship("UserProfileModel", back_populates="user")
+    payments: Mapped[List["PaymentModel"]] = relationship("PaymentModel", back_populates="user")
     activation_token: Mapped[Optional["ActivationTokenModel"]] = relationship(
         "ActivationTokenModel", back_populates="user"
     )
@@ -140,7 +142,7 @@ class ActivationTokenModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
@@ -153,7 +155,7 @@ class PasswordResetTokenModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(255), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
@@ -168,7 +170,7 @@ class RefreshTokenModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(512), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )

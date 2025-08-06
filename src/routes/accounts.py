@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from src.database.models.accounts import UserModel, UserGroup, UserGroupEnum, ActivationTokenModel, \
     PasswordResetTokenModel, RefreshTokenModel
-from src.database.session_sqlite import get_db
+from src.database import get_db
 from src.notifications.send_email.send_activation_email import send_activation_email
 from src.notifications.send_email.send_activation_email_complete import send_activation_email_confirm
 from src.notifications.send_email.send_password_confirm_email import send_password_confirm

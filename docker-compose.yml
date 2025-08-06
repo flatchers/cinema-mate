@@ -1,0 +1,71 @@
+services:
+  cinema:
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    command: /bin/bash -c "src/prestart.sh && alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    depends_on:
+      - db
+      - pgadmin
+      - redis
+      - celery
+
+  db:
+    image: 'postgres:latest'
+    restart: always
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_db:$PGDATA
+
+  pgadmin:
+    image: 'docker.io/dpage/pgadmin4:latest'
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+    ports:
+      - 15080:80
+    volumes:
+      - pgadmin_db:$PGADMIN
+
+  redis:
+    image: "redis:alpine"
+    container_name: redis_container
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  celery:
+    container_name: celery_application
+    restart: unless-stopped
+    build:
+      context: .
+    command: celery -A src.security.celery.celery:celery_app worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+      - pgadmin
+
+  celery_beat:
+    build: .
+    command: celery -A src.security.celery.celery_configuration beat --loglevel=info
+    depends_on:
+      - redis
+      - celery
+    env_file:
+      - .env
+
+volumes:
+  pg_db:
+  pgadmin_db:
