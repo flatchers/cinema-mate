@@ -142,7 +142,7 @@ class ActivationTokenModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
@@ -155,7 +155,7 @@ class PasswordResetTokenModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(255), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
@@ -170,7 +170,7 @@ class RefreshTokenModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(512), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc) + timedelta(days=1)
     )
