@@ -12,6 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+COPY src/prestart.sh /app/prestart.sh
+RUN chmod +x /app/prestart.sh
 
+ENTRYPOINT ["./prestart.sh"]
 # Start Uvicorn for production
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
