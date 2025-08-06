@@ -6,10 +6,14 @@ from sqlalchemy import pool
 from alembic import context
 
 from src.database.models.base import Base
+from src.database.session_postgresql import sync_database_url
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+config.set_main_option('sqlalchemy.url', sync_database_url)
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
