@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# Python cahe and virtual environments
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# environment
+env/
+.venv/
+venv/
+ENV/
+.env
+.env.*
