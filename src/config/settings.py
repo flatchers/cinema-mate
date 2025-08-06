@@ -4,6 +4,12 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "test_host")
+    POSTGRES_PORT: int = os.getenv("POSTGRES_PORT", 5432)
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "test_user")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "test_password")
+    POSTGRES_DB:  str = os.getenv("POSTGRES_DB", "test_db")
+
     SENDGRID_API_KEY: str
 
     STRIPE_PUBLISHABLE_KEY: str
@@ -12,5 +18,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
 
 settings = Settings()
