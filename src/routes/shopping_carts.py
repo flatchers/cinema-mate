@@ -7,7 +7,7 @@ from starlette import status
 from src.database.models import UserModel, Movie, CartItemsModel, CartModel
 from src.database.models.accounts import UserGroupEnum, UserGroup
 from src.database.models.shopping_cart import NotificationDeleteModel
-from src.database.session_sqlite import get_db
+from src.database import get_db
 from src.schemas.shopping_carts import MovieOut, MovieListResponse
 from src.security.token_manipulation import get_current_user
 

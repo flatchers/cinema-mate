@@ -8,7 +8,7 @@ from starlette import status
 
 from src.database.models import UserModel, CartItemsModel, CartModel, OrderModel, OrderItemModel
 from src.database.models.order import StatusEnum
-from src.database.session_sqlite import get_db
+from src.database import get_db
 from src.schemas.orders import OrderSchemaResponse
 from src.security.token_manipulation import get_current_user
 

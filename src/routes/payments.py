@@ -14,7 +14,7 @@ from src.database.models import UserModel, PaymentModel, OrderModel, OrderItemMo
 from src.database.models.accounts import UserGroupEnum
 from src.database.models.order import StatusEnum
 from src.database.models.payments import PaymentStatus, PaymentItemModel
-from src.database.session_sqlite import get_db
+from src.database import get_db
 from src.notifications.send_email.send_payment_confirmation import send_payment_confirmation_email
 from src.querying.payment_filtering import PaymentFilter
 from src.security.token_manipulation import get_current_user
