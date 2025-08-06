@@ -1,4 +1,5 @@
-from typing import Annotated
+from contextlib import asynccontextmanager
+from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends
 
@@ -23,6 +24,20 @@ async def get_db():
         yield session
 
 AsyncSessionDepends = Annotated[AsyncSession, Depends(get_db)]
+
+
+@asynccontextmanager
+async def get_sqlite_db_contextmanager() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Provide an asynchronous database session using a context manager.
+
+    This function allows for managing the database session within a `with` statement.
+    It ensures that the session is properly initialized and closed after execution.
+
+    :return: An asynchronous generator yielding an AsyncSession instance.
+    """
+    async with AsyncSQLiteSessionLocal() as session:
+        yield session
 
 
 async def reset_sqlite_database() -> None:
