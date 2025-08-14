@@ -1,23 +1,26 @@
 import os
 
-from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "test_host")
-    POSTGRES_PORT: int = os.getenv("POSTGRES_PORT", 5432)
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "test_user")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "test_password")
-    POSTGRES_DB:  str = os.getenv("POSTGRES_DB", "test_db")
+    MODE: str = "DEV"
 
-    SENDGRID_API_KEY: str
+    DATABASE_URL: str | None = None
 
-    STRIPE_PUBLISHABLE_KEY: str
-    STRIPE_SECRET_KEY: str
-    WEBHOOK_ENDPOINT_SECRET: str
+    POSTGRES_HOST: str | None = None
+    POSTGRES_PORT: int | None = None
+    POSTGRES_USER: str | None = None
+    POSTGRES_PASSWORD: str | None = None
+    POSTGRES_DB: str | None = None
 
-    class Config:
-        env_file = ".env"
+    SENDGRID_API_KEY: str | None = None
+    STRIPE_PUBLISHABLE_KEY: str | None = None
+    STRIPE_SECRET_KEY: str | None = None
+    WEBHOOK_ENDPOINT_SECRET: str | None = None
+
+    model_config = SettingsConfigDict(env_file=".test.env", extra="ignore")
 
 
 settings = Settings()
