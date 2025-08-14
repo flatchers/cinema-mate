@@ -42,6 +42,9 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
      1) schema - this is input data from pydentic model for registration
      2) session - query to database
 
+     Returns:
+
+
      return UserCreateResponse model
      """
 
@@ -78,6 +81,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
         activate_token = ActivationTokenModel(user_id=new_user.id)
         session.add(activate_token)
         await session.commit()
+        await session.refresh(new_user)
         print(activate_token.token)
 
     except SQLAlchemyError as e:
@@ -87,7 +91,10 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
             detail=f"An error occurred during user creation. -- {e}"
         ) from e
     send_activation_email(schema.email, activate_token.token)
-    return new_user
+    return UserCreateResponse(
+        id=new_user.id,
+        email=new_user.email,
+    )
 
 
 @router.post(
@@ -120,14 +127,15 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
 
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{schema.email} does not exist")
-    if not activ_token:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered")
     if user.is_active:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You are already active")
+    if not activ_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered")
     if schema.token != activ_token.token:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered")
 
     user.is_active = True
+    await session.delete(activ_token)
     await session.commit()
 
     send_activation_email_confirm(schema.email, schema.token)
