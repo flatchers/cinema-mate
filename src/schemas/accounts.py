@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Literal
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 from src.database.models.accounts import UserGroupEnum
 
@@ -9,8 +9,7 @@ from src.database.models.accounts import UserGroupEnum
 class UserCreate(BaseModel):
     email: EmailStr
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserCreateRequest(BaseModel):
@@ -20,6 +19,7 @@ class UserCreateRequest(BaseModel):
 
 class UserCreateResponse(UserCreate):
     id: int
+    email: str
 
 
 class TokenActivationRequest(UserCreate):
