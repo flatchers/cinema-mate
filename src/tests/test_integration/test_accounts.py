@@ -246,3 +246,73 @@ async def test_user_password_reset(client, db_session):
     response_data = response.json()
     assert response_data["message"] == "Request successful"
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_user_password_reset_invalid_scenarios(client, db_session):
+    payload = {
+        "email": f"testuser@example.com",
+        "password": "Ma@12345"
+    }
+    response_register = await client.post("/api/v1/accounts/register/", json=payload)
+    assert response_register.status_code == 201
+    response_data2 = response_register.json()
+
+    stmt = (
+        select(ActivationTokenModel)
+        .join(UserModel)
+        .where(UserModel.email == payload["email"])
+    )
+    result: Result = await db_session.execute(stmt)
+    token = result.scalars().first()
+
+    payload = {
+        "email": "testuser@example.com",
+        "token": token.token
+    }
+
+    response = await client.post("/api/v1/accounts/activate/", json=payload)
+
+    assert response.status_code == 200
+
+    invalid_email = {
+        "email": "notcurrentemail@example.com"
+    }
+    response = await client.post("/api/v1/accounts/password-reset/request/", json=invalid_email)
+
+    stmt = select(UserModel).options(joinedload(UserModel.password_reset_token)).where(UserModel.id == response_data2["id"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+    assert user.password_reset_token is None
+
+    assert response.status_code == 400
+
+    response_data = response.json()
+    assert response_data["detail"] == "Invalid email or password", \
+        "Expected -- 'Invalid email or password'"
+
+    payload = {
+        "email": "testuser@example.com"
+    }
+
+    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    assert response.status_code == 200
+
+    stmt = select(UserModel).options(joinedload(UserModel.password_reset_token)).where(UserModel.id == response_data2["id"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+
+    stmt = select(PasswordResetTokenModel).join(UserModel).where(PasswordResetTokenModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    password_reset = result.scalars().all()
+
+    assert len(password_reset) == 1
+    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+
+    assert response.status_code == 200
+
+    assert user.password_reset_token is None
+    await db_session.refresh(user)
+    assert user.password_reset_token is not None
+    assert len(password_reset) == 1
+
