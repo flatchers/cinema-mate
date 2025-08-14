@@ -144,7 +144,7 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
 
 
 @router.post(
-    "/password-reset/request",
+    "/password-reset/request/",
     summary="Password Reset Request",
     description="reset password request with email",
     response_model=MessageResponse,
