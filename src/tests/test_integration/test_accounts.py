@@ -1,3 +1,6 @@
+import datetime
+from datetime import datetime, timezone, timedelta
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from uuid import uuid4
@@ -6,8 +9,9 @@ from sqlalchemy import Result, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.functions import count
 
+from security.validations import verify_password, password_hash_pwd, password_validator_func
 from src.database.models import UserModel
-from src.database.models.accounts import ActivationTokenModel, PasswordResetTokenModel
+from src.database.models.accounts import ActivationTokenModel, PasswordResetTokenModel, RefreshTokenModel
 from src.main import app
 
 transport = ASGITransport(app=app)
@@ -298,7 +302,11 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
     response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
     assert response.status_code == 200
 
-    stmt = select(UserModel).options(joinedload(UserModel.password_reset_token)).where(UserModel.id == response_data2["id"])
+    stmt = (
+        select(UserModel)
+        .options(joinedload(UserModel.password_reset_token))
+        .where(UserModel.id == response_data2["id"])
+    )
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
 
@@ -316,3 +324,63 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
     assert user.password_reset_token is not None
     assert len(password_reset) == 1
 
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm(client, db_session):
+    payload = {
+        "email": "testuser@example.com",
+        "password": "Test@12345"
+    }
+
+    response = await client.post("/api/v1/accounts/register/", json=payload)
+    assert response.status_code == 201
+    response_data_user = response.json()
+
+    stmt = select(ActivationTokenModel).join(UserModel).where(ActivationTokenModel.user_id == UserModel.id)
+    result: Result = await db_session.execute(stmt)
+    activation_token_model = result.scalars().first()
+    payload = {
+        "email": "testuser@example.com",
+        "token": activation_token_model.token
+    }
+
+    response = await client.post("/api/v1/accounts/activate/", json=payload)
+    assert response.status_code == 200
+
+    payload = {
+        "email": "testuser@example.com",
+    }
+
+    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    assert response.status_code == 200
+
+    stmt = select(PasswordResetTokenModel).join(UserModel).where(PasswordResetTokenModel.user_id == UserModel.id)
+    result: Result = await db_session.execute(stmt)
+    password_reset_token_model = result.scalars().first()
+
+    payload = {
+        "email": "testuser@example.com",
+        "password": "Upload@12345",
+        "token": password_reset_token_model.token
+    }
+
+    response = await client.post("/api/v1/accounts/password-reset/complete/", json=payload)
+    response_data = response.json()
+    assert response_data["message"] == "password successfully changed"
+    assert response.status_code == 200
+
+    current_time = datetime.now(timezone.utc)
+    assert password_reset_token_model.expires_at.replace(tzinfo=timezone.utc) > current_time
+    assert password_reset_token_model.expires_at.replace(tzinfo=timezone.utc) < current_time + timedelta(days=1)
+
+    stmt = select(RefreshTokenModel).join(UserModel).where(RefreshTokenModel.user_id == UserModel.id)
+    result = await db_session.execute(stmt)
+    refresh_token_model = result.scalars().all()
+
+    assert len(refresh_token_model) == 0
+
+    stmt = select(UserModel).where(UserModel.id == response_data_user["id"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+
+    assert user.verify_password_pwd("Upload@12345")
