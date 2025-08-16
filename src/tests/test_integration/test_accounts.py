@@ -326,7 +326,7 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_reset_password_confirm(client, db_session):
+async def test_reset_password_confirm_success(client, db_session):
     payload = {
         "email": "testuser@example.com",
         "password": "Test@12345"
@@ -384,3 +384,44 @@ async def test_reset_password_confirm(client, db_session):
     user = result.scalars().first()
 
     assert user.verify_password_pwd("Upload@12345")
+
+
+@pytest.mark.asyncio
+async def test_reset_password_confirm_invalid_scenarios(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "Test@12345"
+    }
+
+    response = await client.post("/api/v1/accounts/register/", json=payload_register)
+    assert response.status_code == 201
+    response_data_register = response.json()
+
+    stmt = select(ActivationTokenModel).join(UserModel).where(ActivationTokenModel.user_id == UserModel.id)
+    result: Result = await db_session.execute(stmt)
+    activation_token_model = result.scalars().first()
+    payload = {
+        "email": payload_register["email"],
+        "token": activation_token_model.token
+    }
+
+    response = await client.post("/api/v1/accounts/activate/", json=payload)
+    assert response.status_code == 200
+
+    payload = {
+        "email": payload_register["email"],
+    }
+
+    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    assert response.status_code == 200
+
+    payload = {
+        "email": "testuser@example.com",
+        "password": "Upload@12345",
+        "token": "invalid_token"
+    }
+
+    response = await client.post("/api/v1/accounts/password-reset/complete/", json=payload)
+    assert response.status_code == 401
+    response_data = response.json()
+    assert response_data["detail"] == "Invalid token"
