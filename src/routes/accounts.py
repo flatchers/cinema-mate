@@ -183,6 +183,7 @@ async def user_password_reset(
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
+    print(new_token.token)
 
     send_password_reset_email(schema.email, new_token.token)
 
@@ -190,7 +191,7 @@ async def user_password_reset(
 
 
 @router.post(
-    "/password-reset/complete",
+    "/password-reset/complete/",
     summary="Password Reset Confirm",
     description="refresh password",
     status_code=status.HTTP_200_OK
@@ -273,11 +274,21 @@ async def user_login(
     email = form_data.username
     password = form_data.password
 
-    stmt_user = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.email == email)
+    stmt_user = (
+        select(UserModel)
+        .options(selectinload(UserModel.group))
+        .where(UserModel.email == email)
+    )
     result_user = await session.execute(stmt_user)
     db_user = result_user.scalars().first()
 
     if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    if not verify_password(password, db_user._hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
