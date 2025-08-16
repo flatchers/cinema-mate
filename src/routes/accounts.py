@@ -214,27 +214,27 @@ async def reset_password_confirm(
     db_user = result_user.scalars().first()
 
     if not db_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     stmt_reset_token = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == db_user.id)
     result_token = await session.execute(stmt_reset_token)
     reset_token = result_token.scalars().first()
 
     if not reset_token:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     if reset_token.token != schema.token:
         delete_query = delete(RefreshTokenModel).where(RefreshTokenModel.user_id == db_user.id)
         await session.execute(delete_query)
         await session.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     current_time = datetime.now(timezone.utc)
     if reset_token.expires_at.replace(tzinfo=timezone.utc) < current_time:
         delete_query = delete(RefreshTokenModel).where(RefreshTokenModel.user_id == db_user.id)
         await session.execute(delete_query)
         await session.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="token time expired")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="token time expired")
 
     try:
         db_user._hashed_password = password_hash_pwd(password_validator_func(schema.password))
