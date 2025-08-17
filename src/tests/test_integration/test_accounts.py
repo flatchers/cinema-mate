@@ -528,3 +528,112 @@ async def test_user_login_invalid_scenarios(client, db_session):
     assert response_data["detail"] == "Invalid email or password"
 
 
+@pytest.mark.asyncio
+async def test_logout_success(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.USER))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
+    result: Result = await db_session.execute(stmt)
+    user_group = result.scalars().first()
+
+    assert user_group is not None
+
+    user = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=user_group.id
+    )
+    user.is_active = True
+    db_session.add(user)
+    await db_session.commit()
+    assert user.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+    stmt = select(UserModel).where(UserModel.email == payload["username"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+
+    stmt = select(RefreshTokenModel).where(RefreshTokenModel.user_id == user.id)
+    refresh_result = await db_session.execute(stmt)
+    refresh = refresh_result.scalars().first()
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    assert response.status_code == 200
+
+    response_data_login = response.json()
+    assert response_data_login["access_token"], "access token is empty"
+    assert response_data_login["refresh_token"], "refresh token is empty"
+
+    response = await client.post(
+        "/api/v1/accounts/logout/",
+        headers={"Authorization": f"Bearer {response_data_login["access_token"]}"}
+    )
+    assert not refresh
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data["message"] == "Logged out successfully"
+
+
+@pytest.mark.asyncio
+async def test_refresh_success(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.USER))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
+    result: Result = await db_session.execute(stmt)
+    user_group = result.scalars().first()
+
+    assert user_group is not None
+
+    user = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=user_group.id
+    )
+    user.is_active = True
+    db_session.add(user)
+    await db_session.commit()
+    assert user.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+    stmt = select(UserModel).where(UserModel.email == payload["username"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+
+    stmt = select(RefreshTokenModel).where(RefreshTokenModel.user_id == user.id)
+    refresh_result = await db_session.execute(stmt)
+    refresh = refresh_result.scalars().first()
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    assert response.status_code == 200
+
+    response_data_login = response.json()
+    assert response_data_login["access_token"], "access token is empty"
+    assert response_data_login["refresh_token"], "refresh token is empty"
+
+    payload = {
+        "refresh_token": response_data_login["refresh_token"]
+    }
+    response = await client.post("/api/v1/accounts/refresh/", json=payload)
+
+    assert response.status_code == 200
+    response_refresh = response.json()
+
+    assert response_data_login["access_token"] != response_refresh["access_token"]
