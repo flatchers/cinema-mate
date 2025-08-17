@@ -637,3 +637,75 @@ async def test_refresh_success(client, db_session):
     response_refresh = response.json()
 
     assert response_data_login["access_token"] != response_refresh["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_success(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.USER))
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    db_session.add(UserGroup(name=UserGroupEnum.ADMIN))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.ADMIN)
+    result: Result = await db_session.execute(stmt)
+    user_group_admin = result.scalars().first()
+
+    assert user_group_admin is not None
+
+    admin = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=user_group_admin.id
+    )
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
+    result: Result = await db_session.execute(stmt)
+    user_group = result.scalars().first()
+
+    admin.is_active = True
+    db_session.add(admin)
+    await db_session.commit()
+    assert admin.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    assert response.status_code == 200
+    response_data = response.json()
+
+    user = UserModel(
+        email="test_user@example.com",
+        password="StrongPassword123!",
+        group_id=user_group.id
+    )
+    db_session.add(user)
+    await db_session.flush()
+    user.is_active = True
+    await db_session.refresh(user)
+    await db_session.commit()
+
+    stmt = select(UserModel).where(UserModel.email == admin.email)
+    result: Result = await db_session.execute(stmt)
+    selected_admin = result.scalars().first()
+
+    payload = {
+        "group": str(UserGroupEnum.MODERATOR.value),
+        "is_active": False
+    }
+
+    response = await client.post(
+        f"/api/v1/accounts/update/{selected_admin.id}/",
+        json=payload,
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+    )
+
+    assert response.status_code == 200
+
+
