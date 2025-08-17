@@ -358,7 +358,7 @@ async def logout(
     refresh = refresh_result.scalars().first()
     if not authenticate_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not authenticated")
-    if refresh.expires_at < current_time:
+    if refresh.expires_at.replace(tzinfo=timezone.utc) < current_time:
         await session.delete(refresh)
         await session.commit()
         return {
