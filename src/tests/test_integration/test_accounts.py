@@ -707,5 +707,3 @@ async def test_update_user_success(client, db_session):
     )
 
     assert response.status_code == 200
-
-
