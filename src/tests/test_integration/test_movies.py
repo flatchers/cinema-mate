@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import select, Result
 
+from database.models import Movie
 from src.database.models.accounts import UserGroup, UserGroupEnum, UserModel
 
 
@@ -73,6 +74,18 @@ async def test_film_create(db_session, client):
     assert response_data["directors"] == ["Jo Hoffman"]
     assert response_data["stars"] == ["Alaric Zaltzman"]
 
+    stmt = select(Movie).where(Movie.id == response_data["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().first()
+
+    stmt = select(Movie).where(Movie.id == response_data["id"])
+    result: Result = await db_session.execute(stmt)
+    movies = result.scalars().all()
+
+    assert movie
+    assert movies
+    assert movie.id == response_data["id"]
+    assert len(movies) == 1
 
 @pytest.mark.asyncio
 async def test_film_create_invalid_scenarios(db_session, client):
@@ -265,5 +278,95 @@ async def test_movie_update_success(client, db_session):
     assert response.status_code == 200
 
     response_data = response.json()
-    print(response_data)
     assert response_data["new movie"]["name"] == "Success Updated"
+
+
+@pytest.mark.asyncio
+async def test_movie_delete(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_token = response.json()
+    assert response_data_token["access_token"]
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Success Film Test",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "test for creating film",
+        "price": 10.1,
+        "certification": "test best",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Alaric Zaltzman"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+    )
+    response_data_create = response.json()
+    assert response.status_code == 201
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().first()
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movies = result.scalars().all()
+
+    assert movie
+    assert movies
+    assert movie.id == response_data_create["id"]
+    assert len(movies) == 1
+
+    response = await client.delete(
+        f"/api/v1/movies/delete/{response_data_create["id"]}/",
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        )
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().first()
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movies = result.scalars().all()
+
+    assert not movie
+    assert not movies
+    assert len(movies) == 0
+
+    assert response.status_code == 200
+    response_data_delete = response.json()
+    assert response_data_delete["detail"] == "Movie deleted successfully"
