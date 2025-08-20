@@ -158,7 +158,7 @@ async def movie_update(
     return {"new movie": movie}
 
 
-@router.delete("/delete/{movie_id}")
+@router.delete("/delete/{movie_id}/")
 async def movie_delete(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -204,7 +204,7 @@ async def movie_delete(
     await db.delete(movie)
     await db.commit()
 
-    return "Movie deleted successfully"
+    return {"detail": "Movie deleted successfully"}
 
 
 @router.get("/lists/", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
