@@ -296,7 +296,7 @@ async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
     return movie
 
 
-@router.post("/{movie_id}/like/", status_code=status.HTTP_201_CREATED)
+@router.post("/like/{movie_id}/", status_code=status.HTTP_201_CREATED)
 async def add_and_remove_like(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
