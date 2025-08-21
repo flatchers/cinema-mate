@@ -780,3 +780,42 @@ async def test_movie_search_success(client, db_session):
     assert response.status_code == 200
     response_data_two = response.json()
     assert len(response_data_two) == 2
+
+
+@pytest.mark.asyncio
+async def test_movie_search_empty_list(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    assert response.status_code == 200
+
+    response = await client.post("/api/v1/movies/search/", params={"search": "tt"})
+    assert response.status_code == 200
+    response_data = response.json()
+    assert not response_data
+
