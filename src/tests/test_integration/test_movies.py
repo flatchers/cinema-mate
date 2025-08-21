@@ -819,3 +819,71 @@ async def test_movie_search_empty_list(client, db_session):
     response_data = response.json()
     assert not response_data
 
+
+@pytest.mark.asyncio
+async def test_movie_detail(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data = response.json()
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Success Film Test",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "test for creating film",
+        "price": 10.1,
+        "certification": "test best",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Alaric Zaltzman"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data = response.json()
+    print(response_data)
+
+    response = await client.get("/api/v1/movies/detail/", params={"movie_id": response_data["id"]})
+    assert response.status_code == 200
+
+    response_data_detail = response.json()
+    print("DETAIL", response_data_detail)
+    assert response_data_detail["name"] == response_data["name"]
+
+
+
+
