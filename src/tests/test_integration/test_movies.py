@@ -1,8 +1,10 @@
 import pytest
 from sqlalchemy import select, Result
 
-from database.models import Movie
-from src.database.models.accounts import UserGroup, UserGroupEnum, UserModel
+from src.database.models.shopping_cart import CartModel, CartItemsModel
+from src.database.models import Movie, PaymentModel, OrderItemModel, OrderModel, UserModel
+from src.database.models.order import StatusEnum
+from src.database.models.accounts import UserGroup, UserGroupEnum
 
 
 @pytest.mark.asyncio
@@ -370,3 +372,247 @@ async def test_movie_delete(client, db_session):
     assert response.status_code == 200
     response_data_delete = response.json()
     assert response_data_delete["detail"] == "Movie deleted successfully"
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_movie_returns_404(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_token = response.json()
+    assert response_data_token["access_token"]
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Success Film Test",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "test for creating film",
+        "price": 10.1,
+        "certification": "test best",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Alaric Zaltzman"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+    )
+    response_data_create = response.json()
+    assert response.status_code == 201
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().first()
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movies = result.scalars().all()
+
+    assert movie
+    assert movies
+    assert movie.id == response_data_create["id"]
+    assert len(movies) == 1
+
+    response = await client.delete(
+        f"/api/v1/movies/delete/{response_data_create["id"]}/",
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+    )
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().first()
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movies = result.scalars().all()
+
+    assert not movie
+    assert not movies
+    assert len(movies) == 0
+
+    assert response.status_code == 200
+    response_data_delete = response.json()
+    assert response_data_delete["detail"] == "Movie deleted successfully"
+
+    response = await client.delete(
+        f"/api/v1/movies/delete/{response_data_create["id"]}/",
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        )
+    assert response.status_code == 404
+    response_data = response.json()
+    assert response_data["detail"] == "movie not found"
+
+
+@pytest.mark.asyncio
+async def test_purchase_conflict_when_film_already_bought(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    user_group = result.scalars().first()
+
+    assert user_group is not None
+
+    user = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=user_group.id
+    )
+    user.is_active = True
+    db_session.add(user)
+    await db_session.commit()
+    assert user.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_token = response.json()
+    assert response_data_token["access_token"]
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Success Film Test",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "test for creating film",
+        "price": 10.1,
+        "certification": "test best",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Alaric Zaltzman"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_create = response.json()
+    print(response_data_create)
+
+    stmt = select(UserModel).where(UserModel.email == payload["username"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().first()
+    print("MOVIE ID", movie.id)
+
+    cart_create = CartModel(
+        user_id=user.id,
+    )
+    db_session.add(cart_create)
+    await db_session.commit()
+    stmt = select(CartModel).where(CartModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    cart = result.scalars().first()
+    assert cart
+    print("CART ID: ", cart.id)
+
+    cart_items_create = CartItemsModel(
+        cart_id=cart.id,
+        movie_id=movie.id,
+    )
+    db_session.add(cart_items_create)
+    await db_session.commit()
+
+    order_create = OrderModel(
+        user_id=user.id,
+        status=StatusEnum.PAID,
+        total_amount=movie.price
+    )
+    db_session.add(order_create)
+    await db_session.commit()
+
+    stmt = select(OrderModel).where(OrderModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    order = result.scalars().first()
+    assert order
+
+    order_items = OrderItemModel(
+        order_id=order.id,
+        movie_id=movie.id,
+        price_at_order=movie.price
+    )
+    db_session.add(order_items)
+    await db_session.commit()
+    assert order_items
+    assert order.status == StatusEnum.PAID
+
+    stmt = select(OrderItemModel).join(OrderModel).where(OrderModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    order_item = result.scalars().first()
+
+    assert order_item
+    print("ORDER_ITEM ID", order_item.id)
+
+    payment_create = PaymentModel(
+        user_id=user.id,
+        order_id=order.id,
+        amount=order.total_amount
+    )
+    db_session.add(payment_create)
+    await db_session.commit()
+
+    stmt = select(PaymentModel).where(PaymentModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    payment = result.scalars().first()
+
+    assert payment
+
+    response = await client.delete(
+        f"/api/v1/movies/delete/{response_data_create["id"]}/",
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        )
+    assert response.status_code == 409, "Expected message: current film is bought"
+
+    stmt = select(Movie).where(Movie.id == response_data_create["id"])
+    result: Result = await db_session.execute(stmt)
+    movie = result.scalars().all()
+
+    assert len(movie) == 1
+
