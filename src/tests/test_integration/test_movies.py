@@ -36,10 +36,6 @@ async def test_film_create(db_session, client):
         "password": payload_register["password"]
     }
 
-    stmt = select(UserModel).where(UserModel.email == payload["username"])
-    result: Result = await db_session.execute(stmt)
-    moder = result.scalars().first()
-
     response = await client.post("/api/v1/accounts/login/", data=payload)
     response_data = response.json()
     assert response.status_code == 200
@@ -690,3 +686,97 @@ async def test_movie_list_invalid_scenarios(client, db_session):
     assert response.status_code == 404
     response_data = response.json()
     assert response_data["detail"] == "No movies found."
+
+
+@pytest.mark.asyncio
+async def test_movie_search_success(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "aaa",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "aaa",
+        "price": 10.1,
+        "certification": "aaaaaaaaa",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["aaa"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    response = await client.post("/api/v1/movies/search/", params={"search": "aaa"})
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data[0]["name"] == "aaa"
+    assert len(response_data) == 1
+
+    payload_new = {
+        "name": "att",
+        "year": 2021,
+        "time": 131,
+        "imdb": 6.1,
+        "votes": 101,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "ttt ",
+        "price": 10.0,
+        "certification": "ttt",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["ttt"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_new,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    response = await client.post("/api/v1/movies/search/", params={"search": "tt"})
+    assert response.status_code == 200
+    response_data = response.json()
+    assert len(response_data) == 1
+
+    response = await client.post("/api/v1/movies/search/", params={"search": "a"})
+    assert response.status_code == 200
+    response_data_two = response.json()
+    assert len(response_data_two) == 2
