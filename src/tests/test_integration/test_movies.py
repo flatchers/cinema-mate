@@ -681,3 +681,12 @@ async def test_movie_list_success(client, db_session):
     assert response_data["next_page"] is None
     assert response_data["total_pages"] == 1
     assert response_data["total_items"] == 1
+
+
+@pytest.mark.asyncio
+async def test_movie_list_invalid_scenarios(client, db_session):
+
+    response = await client.get("/api/v1/movies/lists/")
+    assert response.status_code == 404
+    response_data = response.json()
+    assert response_data["detail"] == "No movies found."
