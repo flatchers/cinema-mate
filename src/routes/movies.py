@@ -254,23 +254,27 @@ async def movie_search(search: Optional[str] = None, db: AsyncSession = Depends(
             )
     result: Result = await db.execute(stmt)
     movies = result.scalars().all()
-
+    seen_movie_ids = set()
     if search:
         list_search = []
         for item in movies:
-            if search.lower() in item.name.lower():
+            if search.lower() in item.name.lower() and item.id not in seen_movie_ids:
                 list_search.append(item)
+                seen_movie_ids.add(item.id)
 
-            if search.lower() in item.description.lower():
+            if search.lower() in item.description.lower() and item.id not in seen_movie_ids:
                 list_search.append(item)
+                seen_movie_ids.add(item.id)
 
             for actor in item.stars:
-                if search.lower() in actor.name.lower():
+                if search.lower() in actor.name.lower() and item.id not in seen_movie_ids:
                     list_search.append(item)
+                    seen_movie_ids.add(item.id)
 
             for director in item.directors:
-                if search.lower() in director.name.lower():
+                if search.lower() in director.name.lower() and item.id not in seen_movie_ids:
                     list_search.append(item)
+                    seen_movie_ids.add(item.id)
         return list_search
 
     return movies
