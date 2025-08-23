@@ -460,6 +460,8 @@ async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Dep
     stmt_movies = select(Movie).join(Movie.genres).options(selectinload(Movie.genres)).where(Genre.id == genre_id)
     result: Result = await db.execute(stmt_movies)
     movies = result.scalars().all()
+    if not movies:
+        raise HTTPException(status_code=404, detail="Movies not found")
 
     stmt_movies = (
         select(func.count(Movie.id))
