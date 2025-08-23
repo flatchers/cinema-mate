@@ -1236,3 +1236,79 @@ async def test_favourite_list(client, db_session):
     assert response.status_code == 200
     response_data = response.json()
     assert len(response_data) == 0
+
+
+@pytest.mark.asyncio
+async def test_favourite_search(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "aaa",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "aaa",
+        "price": 10.1,
+        "certification": "aaaaaaaaa",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["aaa"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data = response.json()
+
+    response = await client.post(
+        f"/api/v1/movies/favourite/{response_data["id"]}/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    response_data_fav = response.json()
+    assert response_data_fav["message"] == "added to favourite"
+
+    response = await client.get(
+        "/api/v1/movies/favourite/search/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
+        params={"search": "a"}
+    )
+    assert response.status_code == 200
+    response_data = response.json()
+    assert len(response_data) == 1
+
