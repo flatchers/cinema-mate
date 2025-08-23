@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette import status
+from starlette.responses import JSONResponse
 
 from src.database.models import PaymentModel, OrderModel, OrderItemModel
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
@@ -347,7 +348,7 @@ async def write_comments(
     return db_comment
 
 
-@router.post("/{movie_id}/favourite/", status_code=status.HTTP_201_CREATED)
+@router.post("/favourite/{movie_id}/")
 async def add_and_remove_favourite(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -368,16 +369,20 @@ async def add_and_remove_favourite(
     movie = result.scalars().first()
 
     if not movie:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Movie not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
 
     if movie not in user.favourite_movies:
         user.favourite_movies.append(movie)
         message = "added to favourite"
+        response_status = status.HTTP_201_CREATED
     else:
         user.favourite_movies.remove(movie)
         message = "remove from favourite"
+        response_status = status.HTTP_200_OK
+    db.add(user)
     await db.commit()
-    return {"message": message}
+
+    return JSONResponse(content={"message": message}, status_code=response_status)
 
 
 @router.get("/favourite/list/")
