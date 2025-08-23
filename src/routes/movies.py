@@ -400,9 +400,9 @@ async def favourite_list(current_user: UserModel = Depends(get_current_user), db
     return user.favourite_movies
 
 
-@router.post("/favourite/search/", status_code=status.HTTP_200_OK)
+@router.get("/favourite/search/", status_code=status.HTTP_200_OK)
 async def favourite_search(
-        search: Optional[str] = None,
+        search: Optional[str] = Query(None),
         current_user: UserModel = Depends(get_current_user),
         movie_filter: MovieFilter = FilterDepends(MovieFilter),
         sort: ItemQueryParams = Depends(),
