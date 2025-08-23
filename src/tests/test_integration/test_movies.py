@@ -1103,3 +1103,44 @@ async def test_add_and_remove_favourite(client, db_session):
     assert response.status_code == 200
     response_data_rem = response.json()
     assert response_data_rem["message"] == "remove from favourite"
+
+
+@pytest.mark.asyncio
+async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+    response = await client.post(
+        f"/api/v1/movies/favourite/{999}/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+
+    assert response.status_code == 404
+
