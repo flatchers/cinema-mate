@@ -14,7 +14,7 @@ from src.security.token_manipulation import get_current_user
 router = APIRouter()
 
 
-@router.post("/{movie_id}/add/")
+@router.post("/{movie_id}/add/", status_code=201)
 async def add_cart_item(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -56,7 +56,7 @@ async def add_cart_item(
     session.add(cart_item)
     await session.commit()
 
-    return cart_item
+    return {"create cart item": cart_item}
 
 
 @router.delete("/{cart_item_id}/delete/")
