@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select, Result
 from sqlalchemy.orm import selectinload
 
-from src.database.models.movies import Comment, Genre
+from src.database.models.movies import Comment, Genre, Rate
 from src.database.models.shopping_cart import CartModel, CartItemsModel
 from src.database.models import Movie, PaymentModel, OrderItemModel, OrderModel, UserModel
 from src.database.models.order import StatusEnum
@@ -1272,16 +1272,16 @@ async def test_favourite_search(client, db_session):
     assert response.status_code == 200
 
     payload_movie = {
-        "name": "aaa",
+        "name": "Favourite Search Success",
         "year": 2020,
         "time": 130,
         "imdb": 6.1,
         "votes": 100,
         "meta_score": 10.1,
         "gross": 9.1,
-        "description": "aaa",
+        "description": "testing",
         "price": 10.1,
-        "certification": "aaaaaaaaa",
+        "certification": "testing",
         "genres": ["drama"],
         "directors": ["Jo Hoffman"],
         "stars": ["aaa"],
@@ -1434,3 +1434,90 @@ async def test_movies_of_genre(client, db_session):
     assert response_data["detail"] == "Movies not found"
 
     print(response_data)
+
+
+@pytest.mark.asyncio
+async def test_rate(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Rate Success",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "testing",
+        "price": 10.1,
+        "certification": "testing",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Junior Developer"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_movie = response.json()
+
+    payload = {
+        "score": 5.5
+    }
+    response = await client.post(
+        f"/api/v1/movies/score/{response_data_movie["id"]}/",
+        json=payload,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data = response.json()
+    assert response_data["message"] == f"new rate - {payload["score"]}"
+
+    payload = {
+        "score": 7.6
+    }
+    response = await client.post(
+        f"/api/v1/movies/score/{response_data_movie["id"]}/",
+        json=payload,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data = response.json()
+    assert response_data["message"] == f"updated rate - {payload["score"]}"
+
+    stmt = select(Rate).where(Rate.movie_id == response_data_movie["id"])
+    result: Result = await db_session.execute(stmt)
+    rate = result.scalars().all()
+    assert len(rate) == 1
+
