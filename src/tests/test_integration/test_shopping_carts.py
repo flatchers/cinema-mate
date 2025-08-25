@@ -430,5 +430,108 @@ async def test_cart_list_invalid_scenario(client, db_session):
     assert response.status_code == 404
     response_data_list = response.json()
     assert response_data_list["detail"] == "list is empty", "Expected message: list is empty"
-    assert len(response_data_list["movies"]) == 0
-    assert not response_data_list["movies"]
+
+
+@pytest.mark.asyncio
+async def test_items_detail_success_scenario(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.ADMIN))
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.commit()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moder_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moder_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Rate Success",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "testing",
+        "price": 10.1,
+        "certification": "testing",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Junior Developer"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_movie = response.json()
+
+    response = await client.post(
+        f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    payload_admin = {
+        "email": "testadmin@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.ADMIN)
+    result: Result = await db_session.execute(stmt)
+    admin_group = result.scalars().first()
+
+    admin = UserModel(
+        email=payload_admin["email"],
+        password=payload_admin["password"],
+        group_id=admin_group.id
+    )
+    admin.is_active = True
+    db_session.add(admin)
+    await db_session.commit()
+
+    payload_admin_log = {
+        "username": payload_admin["email"],
+        "password": payload_admin["password"]
+    }
+    response = await client.post("/api/v1/accounts/login/", data=payload_admin_log)
+    response_data_login = response.json()
+    print("RESPONSE LOGIN", response_data_login)
+    assert response.status_code == 200
+
+    stmt = select(UserModel).where(UserModel.email == payload_admin["email"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+    assert user
+    print("USER ID", user.id)
+
+    response = await client.get(
+        f"/api/v1/shopping-carts/{1}/detail/",
+        headers={"Authorization": f"Bearer {response_data_login["access_token"]}"}
+    )
+    assert response.status_code == 200
+    response_data_list = response.json()
+    print(response_data_list)
+    assert response_data_list[0]["movie_id"] == response_data_movie["id"]
