@@ -149,11 +149,11 @@ async def items_detail(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if not user.group.name != UserGroupEnum.ADMIN:
+    if user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This function for admins")
 
     stmt = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user_id)
     result: Result = await session.execute(stmt)
     purpose_user = result.scalars().all()
 
-    return purpose_user
+    return {"detail": purpose_user}
