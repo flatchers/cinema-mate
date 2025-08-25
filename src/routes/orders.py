@@ -15,7 +15,7 @@ from src.security.token_manipulation import get_current_user
 router = APIRouter()
 
 
-@router.post("/add/")
+@router.post("/add/", status_code=status.HTTP_201_CREATED)
 async def create_order(
         db: AsyncSession = Depends(get_db),
         current_user: UserModel = Depends(get_current_user)
