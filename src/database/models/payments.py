@@ -21,6 +21,7 @@ class PaymentStatus(str, enum.Enum):
 
 class PaymentModel(Base):
     __tablename__ = "payments"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -78,6 +79,7 @@ class PaymentModel(Base):
 
 class PaymentItemModel(Base):
     __tablename__ = "payment_items"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(
         Integer,

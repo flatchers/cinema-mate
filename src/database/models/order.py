@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 class OrderModel(Base):
     __tablename__ = "orders"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -45,6 +46,7 @@ class OrderModel(Base):
 
 class OrderItemModel(Base):
     __tablename__ = "order_items"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
