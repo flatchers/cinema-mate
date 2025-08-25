@@ -111,7 +111,7 @@ async def order_list(
     ]
 
 
-@router.delete("/delete/{order_id}/")
+@router.delete("/delete/{order_id}/", status_code=status.HTTP_200_OK)
 async def order_delete(
         order_id: int,
         db: AsyncSession = Depends(get_db),
