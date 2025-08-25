@@ -84,7 +84,7 @@ async def create_order(
         str_existing_films = ", ".join(existing_films)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"{str_existing_films} already exist"
+            detail=f"{str_existing_films} already exist."
         )
 
     return {"response": "Order created successfully"}
