@@ -59,7 +59,7 @@ async def add_cart_item(
     return {"create cart item": cart_item}
 
 
-@router.delete("/{cart_item_id}/delete/")
+@router.delete("/{cart_item_id}/delete/", status_code=200)
 async def remove_cart_item(
         cart_item_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -96,7 +96,7 @@ async def remove_cart_item(
 
     await session.commit()
 
-    return "Movie deleted from cart successfully"
+    return {"message": "Movie deleted from cart successfully"}
 
 
 @router.get("/list/", response_model=MovieListResponse)
