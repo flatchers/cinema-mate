@@ -1,7 +1,8 @@
 import pytest
-from sqlalchemy import select, Result
+from sqlalchemy import select, Result, DECIMAL
 
-from database.models import OrderModel
+from src.database.models import OrderModel
+from src.database.models.order import StatusEnum
 from src.database.models.accounts import UserGroupEnum, UserGroup, UserModel
 
 
@@ -385,3 +386,179 @@ async def test_create_order_409_existing_orders_conflict(client, db_session):
     orders = result.scalars().all()
 
     assert len(orders) == 2
+
+
+@pytest.mark.asyncio
+async def test_order_list(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+
+    payload_movie = {
+        "name": "Order Success",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "testing",
+        "price": 10.1,
+        "certification": "testing",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Junior Developer"],
+    }
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_movie = response.json()
+
+    response = await client.post(
+        f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        f"/api/v1/orders/add/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_order = response.json()
+    assert response_data_order["response"] == "Order created successfully"
+
+    stmt = select(UserModel).where(UserModel.email == payload_register["email"])
+    result: Result = await db_session.execute(stmt)
+    user = result.scalars().first()
+
+    stmt = select(OrderModel).where(OrderModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    order = result.scalars().first()
+    assert order
+
+    stmt = select(OrderModel).where(OrderModel.user_id == user.id)
+    result: Result = await db_session.execute(stmt)
+    orders = result.scalars().all()
+
+    assert len(orders) == 1
+
+    response = await client.get(
+        f"/api/v1/orders/list/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data[0]["id"] == order.id
+    assert response_data[0]["count_films"] == 1
+    assert response_data[0]["status"] == order.status
+
+    payload_movie2 = {
+        "name": "Order2",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "testing2",
+        "price": 10.1,
+        "certification": "testing2",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Middle Developer"],
+    }
+
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie2,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_movie_2 = response.json()
+
+    response = await client.post(
+        f"/api/v1/shopping-carts/{response_data_movie_2["id"]}/add/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    payload_movie3 = {
+        "name": "Order3",
+        "year": 2020,
+        "time": 130,
+        "imdb": 6.1,
+        "votes": 100,
+        "meta_score": 10.1,
+        "gross": 9.1,
+        "description": "testing2",
+        "price": 10.1,
+        "certification": "testing2",
+        "genres": ["drama"],
+        "directors": ["Jo Hoffman"],
+        "stars": ["Middle Developer"],
+    }
+
+    response = await client.post(
+        "/api/v1/movies/create/",
+        json=payload_movie3,
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+    response_data_movie_3 = response.json()
+
+    response = await client.post(
+        f"/api/v1/shopping-carts/{response_data_movie_3["id"]}/add/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    response = await client.post(
+        f"/api/v1/orders/add/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 201
+
+    response = await client.get(
+        f"/api/v1/orders/list/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+
+    assert response.status_code == 200
+
+    response_data = response.json()
+
+    assert response_data[1]["id"] == order.id + 1
+    assert response_data[1]["count_films"] == 2
+    assert response_data[1]["status"] == StatusEnum.PENDING
