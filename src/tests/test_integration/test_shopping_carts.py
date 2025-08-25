@@ -388,3 +388,47 @@ async def test_cart_list_success_scenario(client, db_session):
     assert response.status_code == 200
     response_data_list = response.json()
     assert len(response_data_list["movies"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_cart_list_invalid_scenario(client, db_session):
+    payload_register = {
+        "email": "testuser@example.com",
+        "password": "StrongPassword123!"
+    }
+
+    db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
+    await db_session.flush()
+
+    stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.MODERATOR)
+    result: Result = await db_session.execute(stmt)
+    moderator_group = result.scalars().first()
+
+    moderator = UserModel(
+        email=payload_register["email"],
+        password=payload_register["password"],
+        group_id=moderator_group.id
+    )
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    assert moderator.is_active
+
+    payload = {
+        "username": payload_register["email"],
+        "password": payload_register["password"]
+    }
+
+    response = await client.post("/api/v1/accounts/login/", data=payload)
+    response_data_log = response.json()
+    assert response.status_code == 200
+
+    response = await client.get(
+        f"/api/v1/shopping-carts/list/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+    )
+    assert response.status_code == 404
+    response_data_list = response.json()
+    assert response_data_list["detail"] == "list is empty", "Expected message: list is empty"
+    assert len(response_data_list["movies"]) == 0
+    assert not response_data_list["movies"]
