@@ -14,7 +14,7 @@ from src.security.token_manipulation import get_current_user
 router = APIRouter()
 
 
-@router.post("/{movie_id}/add/")
+@router.post("/{movie_id}/add/", status_code=201)
 async def add_cart_item(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -56,10 +56,10 @@ async def add_cart_item(
     session.add(cart_item)
     await session.commit()
 
-    return cart_item
+    return {"create cart item": cart_item}
 
 
-@router.delete("/{cart_item_id}/delete/")
+@router.delete("/{cart_item_id}/delete/", status_code=200)
 async def remove_cart_item(
         cart_item_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -96,7 +96,7 @@ async def remove_cart_item(
 
     await session.commit()
 
-    return "Movie deleted from cart successfully"
+    return {"message": "Movie deleted from cart successfully"}
 
 
 @router.get("/list/", response_model=MovieListResponse)
@@ -149,11 +149,11 @@ async def items_detail(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if not user.group.name != UserGroupEnum.ADMIN:
+    if user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This function for admins")
 
     stmt = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user_id)
     result: Result = await session.execute(stmt)
     purpose_user = result.scalars().all()
 
-    return purpose_user
+    return {"detail": purpose_user}

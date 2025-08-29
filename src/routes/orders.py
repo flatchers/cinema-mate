@@ -15,7 +15,7 @@ from src.security.token_manipulation import get_current_user
 router = APIRouter()
 
 
-@router.post("/add/")
+@router.post("/add/", status_code=status.HTTP_201_CREATED)
 async def create_order(
         db: AsyncSession = Depends(get_db),
         current_user: UserModel = Depends(get_current_user)
@@ -84,7 +84,7 @@ async def create_order(
         str_existing_films = ", ".join(existing_films)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"{str_existing_films} already exist"
+            detail=f"{str_existing_films} already exist."
         )
 
     return {"response": "Order created successfully"}
@@ -111,7 +111,7 @@ async def order_list(
     ]
 
 
-@router.delete("/delete/{order_id}/")
+@router.delete("/delete/{order_id}/", status_code=status.HTTP_200_OK)
 async def order_delete(
         order_id: int,
         db: AsyncSession = Depends(get_db),

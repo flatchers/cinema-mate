@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette import status
+from starlette.responses import JSONResponse
 
 from src.database.models import PaymentModel, OrderModel, OrderItemModel
 from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
@@ -158,7 +159,7 @@ async def movie_update(
     return {"new movie": movie}
 
 
-@router.delete("/delete/{movie_id}")
+@router.delete("/delete/{movie_id}/")
 async def movie_delete(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -204,7 +205,7 @@ async def movie_delete(
     await db.delete(movie)
     await db.commit()
 
-    return "Movie deleted successfully"
+    return {"detail": "Movie deleted successfully"}
 
 
 @router.get("/lists/", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
@@ -254,23 +255,27 @@ async def movie_search(search: Optional[str] = None, db: AsyncSession = Depends(
             )
     result: Result = await db.execute(stmt)
     movies = result.scalars().all()
-
+    seen_movie_ids = set()
     if search:
         list_search = []
         for item in movies:
-            if search.lower() in item.name.lower():
+            if search.lower() in item.name.lower() and item.id not in seen_movie_ids:
                 list_search.append(item)
+                seen_movie_ids.add(item.id)
 
-            if search.lower() in item.description.lower():
+            if search.lower() in item.description.lower() and item.id not in seen_movie_ids:
                 list_search.append(item)
+                seen_movie_ids.add(item.id)
 
             for actor in item.stars:
-                if search.lower() in actor.name.lower():
+                if search.lower() in actor.name.lower() and item.id not in seen_movie_ids:
                     list_search.append(item)
+                    seen_movie_ids.add(item.id)
 
             for director in item.directors:
-                if search.lower() in director.name.lower():
+                if search.lower() in director.name.lower() and item.id not in seen_movie_ids:
                     list_search.append(item)
+                    seen_movie_ids.add(item.id)
         return list_search
 
     return movies
@@ -292,7 +297,7 @@ async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
     return movie
 
 
-@router.post("/{movie_id}/like/", status_code=status.HTTP_201_CREATED)
+@router.post("/like/{movie_id}/", status_code=status.HTTP_201_CREATED)
 async def add_and_remove_like(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -343,7 +348,7 @@ async def write_comments(
     return db_comment
 
 
-@router.post("/{movie_id}/favourite/", status_code=status.HTTP_201_CREATED)
+@router.post("/favourite/{movie_id}/")
 async def add_and_remove_favourite(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -364,16 +369,20 @@ async def add_and_remove_favourite(
     movie = result.scalars().first()
 
     if not movie:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Movie not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
 
     if movie not in user.favourite_movies:
         user.favourite_movies.append(movie)
         message = "added to favourite"
+        response_status = status.HTTP_201_CREATED
     else:
         user.favourite_movies.remove(movie)
         message = "remove from favourite"
+        response_status = status.HTTP_200_OK
+    db.add(user)
     await db.commit()
-    return {"message": message}
+
+    return JSONResponse(content={"message": message}, status_code=response_status)
 
 
 @router.get("/favourite/list/")
@@ -391,9 +400,9 @@ async def favourite_list(current_user: UserModel = Depends(get_current_user), db
     return user.favourite_movies
 
 
-@router.post("/favourite/search/", status_code=status.HTTP_200_OK)
+@router.get("/favourite/search/", status_code=status.HTTP_200_OK)
 async def favourite_search(
-        search: Optional[str] = None,
+        search: Optional[str] = Query(None),
         current_user: UserModel = Depends(get_current_user),
         movie_filter: MovieFilter = FilterDepends(MovieFilter),
         sort: ItemQueryParams = Depends(),
@@ -451,6 +460,8 @@ async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Dep
     stmt_movies = select(Movie).join(Movie.genres).options(selectinload(Movie.genres)).where(Genre.id == genre_id)
     result: Result = await db.execute(stmt_movies)
     movies = result.scalars().all()
+    if not movies:
+        raise HTTPException(status_code=404, detail="Movies not found")
 
     stmt_movies = (
         select(func.count(Movie.id))

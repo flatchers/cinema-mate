@@ -27,6 +27,7 @@ class GenderEnum(str, enum.Enum):
 
 class UserGroup(Base):
     __tablename__ = "user_groups"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[UserGroupEnum] = mapped_column(
@@ -46,6 +47,7 @@ class UserModel(Base):
     from src.database.models.movies import Movie
 
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -117,6 +119,7 @@ class UserModel(Base):
 
 class UserProfileModel(Base):
     __tablename__ = "user_profile"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(100))
@@ -138,6 +141,7 @@ class UserProfileModel(Base):
 
 class ActivationTokenModel(Base):
     __tablename__ = "activation_tokens"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, default=generate_token)
@@ -152,6 +156,8 @@ class ActivationTokenModel(Base):
 
 class PasswordResetTokenModel(Base):
     __tablename__ = "password_reset_tokens"
+    __table_args__ = {'extend_existing': True}
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(255), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
@@ -166,6 +172,7 @@ class PasswordResetTokenModel(Base):
 
 class RefreshTokenModel(Base):
     __tablename__ = "refresh_tokens"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(512), unique=True, default=generate_token)

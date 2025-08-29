@@ -18,6 +18,7 @@ MovieGenreModel = Table(
     Column(
         "genre_id",
         ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    extend_existing=True
     )
 
 MovieStarModel = Table(
@@ -25,6 +26,7 @@ MovieStarModel = Table(
     Base.metadata,
     Column("star_id", ForeignKey("stars.id"), primary_key=True, nullable=False),
     Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
+    extend_existing=True
 )
 
 MovieDirectorModel = Table(
@@ -32,6 +34,7 @@ MovieDirectorModel = Table(
     Base.metadata,
     Column("director_id", ForeignKey("directors.id"), primary_key=True, nullable=False),
     Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
+    extend_existing=True
 )
 
 MovieLikeUserModel = Table(
@@ -39,6 +42,7 @@ MovieLikeUserModel = Table(
     Base.metadata,
     Column("user_id", ForeignKey("users.id"), primary_key=True),
     Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
+    extend_existing=True
 )
 
 MovieFavouriteUserModel = Table(
@@ -46,11 +50,13 @@ MovieFavouriteUserModel = Table(
     Base.metadata,
     Column("user_id", ForeignKey("users.id"), primary_key=True, nullable=False),
     Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
+    extend_existing=True
 )
 
 
 class Genre(Base):
     __tablename__ = "genres"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -63,6 +69,7 @@ class Genre(Base):
 
 class Star(Base):
     __tablename__ = "stars"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -75,6 +82,7 @@ class Star(Base):
 
 class Director(Base):
     __tablename__ = "directors"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -87,6 +95,7 @@ class Director(Base):
 
 class Certification(Base):
     __tablename__ = "certifications"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -96,6 +105,7 @@ class Certification(Base):
 
 class Comment(Base):
     __tablename__ = "comment"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     comment: Mapped[str] = mapped_column(String, nullable=False)
@@ -118,6 +128,7 @@ class Rate(Base):
 
     __table_args__ = (
         CheckConstraint("rate >= 1.0 AND rate <= 10.0", name="rate_between_1_and_10"),
+        {'extend_existing': True}
     )
 
 
@@ -181,11 +192,13 @@ class Movie(Base):
 
     __table_args__ = (
         UniqueConstraint("name", "year", "time"),
+        {'extend_existing': True}
     )
 
 
 class Notification(Base):
     __tablename__ = "notification"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

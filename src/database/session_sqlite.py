@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends
+from sqlalchemy import StaticPool
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -9,9 +10,12 @@ from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
 
-SQL_DB_URL = "sqlite+aiosqlite:///./online_cinema.db"
 
-engine = create_async_engine(SQL_DB_URL, echo=False)
+SQL_DB_URL = "sqlite+aiosqlite:///./online_cinema.db"
+connect_args = {"check_same_thread": False}
+pool = None
+
+engine = create_async_engine(SQL_DB_URL, connect_args=connect_args, poolclass=pool, echo=False)
 AsyncSQLiteSessionLocal = sessionmaker(  # type: ignore
     bind=engine,
     class_=AsyncSession,
