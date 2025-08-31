@@ -427,16 +427,6 @@ async def test_webhook_success(mock_payment_add, client, db_session):
         }
     }
 
-    new_payment = PaymentModel(
-        user_id=user.id,
-        order_id=order.id,
-        amount=order.total_amount,
-        external_payment_id="cs_test_123",
-    )
-    db_session.add(new_payment)
-    await db_session.commit()
-    await db_session.refresh(new_payment)
-
     response = await client.post(
         f"/api/v1/payments/webhook/",
         json=fake_event,
