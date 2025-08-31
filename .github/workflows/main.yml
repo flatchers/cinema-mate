@@ -22,7 +22,7 @@ jobs:
         run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 207567775302.dkr.ecr.eu-north-1.amazonaws.com/kosplay
       - name: Push image
         run: |
-          docker tag cinema:latest 207567775302.dkr.ecr.eu-north-1.amazonaws.com/kosplay/cinema:latest
-          docker push 207567775302.dkr.ecr.eu-north-1.amazonaws.com/kosplay/cinema:latest
+          docker tag cinema:latest 207567775302.dkr.ecr.eu-north-1.amazonaws.com/kosplay:latest
+          docker push 207567775302.dkr.ecr.eu-north-1.amazonaws.com/kosplay:latest
       - name: Update ECS service
         run: aws ecs update-service --cluster bossy-flamingo-hhsycc --service api-service-service-lh5kv2b5 --force-new-deployment
