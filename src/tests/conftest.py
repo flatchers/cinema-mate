@@ -4,9 +4,8 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy import StaticPool
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from database.models.base import Base
-from database.session_sqlite import reset_sqlite_database, get_sqlite_db_contextmanager
-from main import app
+from src.database.session_sqlite import reset_sqlite_database, get_sqlite_db_contextmanager
+from src.main import app
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
