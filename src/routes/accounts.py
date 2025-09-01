@@ -109,9 +109,9 @@ async def user_token_activation(schema: TokenActivationRequest, session: AsyncSe
 
     The endpoint allows to activate user account with provided data. User gets secure token.
     After activation token, user can log in, logout from account,
-    :param schema: input data from pydentic model for activation token
-    :param session: query to database
-    :return: message
+    schema: input data from pydentic model for activation token
+    session: query to database
+    return: message
     """
 
     stmt_token = select(ActivationTokenModel).join(UserModel).where(
@@ -156,9 +156,9 @@ async def user_password_reset(
     """
     Password Reset Request
     The endpoint allow reset password by entering email if tokens are equals
-    :param schema: input data from pydentic model for reset password
-    :param session: query to database
-    :return: MessageResponse
+    schema: input data from pydentic model for reset password
+    session: query to database
+    return: MessageResponse
     """
     user_stmt = select(UserModel).where(UserModel.email == schema.email)
     user_result = await session.execute(user_stmt)
@@ -205,9 +205,9 @@ async def reset_password_confirm(
 
     The endpoint allow you
 
-    :param schema: input data from pydentic model for setting a new password
-    :param session: query to database
-    :return: Message
+    schema: input data from pydentic model for setting a new password
+    session: query to database
+    return: Message
     """
     stmt_user = select(UserModel).where(UserModel.email == schema.email)
     result_user = await session.execute(stmt_user)
@@ -267,9 +267,9 @@ async def user_login(
     Login Account
 
     Allow user to sign in with the provided credentials
-    :param session: query to database
-    :param form_data: provided button for entering to account
-    :return: UserLoginResponse
+    session: query to database
+    form_data: provided button for entering to account
+    return: UserLoginResponse
     """
     email = form_data.username
     password = form_data.password
@@ -350,10 +350,10 @@ async def logout(
     Logout
 
     Allows logout of account
-    :param current_user: current user's argument
-    :param token: current token
-    :param session: query to database
-    :return: MessageResponse
+    current_user: current user's argument
+    token: current token
+    session: query to database
+    return: MessageResponse
     """
     current_time = datetime.now(timezone.utc)
 
@@ -392,9 +392,9 @@ async def refresh(
 
     Getting new access token provided current refresh token
 
-    :param token_data: schema for input
-    :param db: query to database
-    :return: AccessTokenResponse
+    token_data: schema for input
+    db: query to database
+    return: AccessTokenResponse
     """
     try:
         decoded_token = decode_token(token_data.refresh_token)
@@ -445,11 +445,11 @@ async def update_user(
 
     allows administrators changing role & activation account
 
-    :param user_id: indicates the user id that will be changed
-    :param schema: schema for input for updating
-    :param session: query to database
-    :param current_user: current user
-    :return: message
+    user_id: indicates the user id that will be changed
+    schema: schema for input for updating
+    session: query to database
+    current_user: current user
+    return: message
     """
 
     stmt = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.id == user_id)
@@ -493,13 +493,3 @@ async def update_user(
         "message": f"Successful updated user_id {user.id}: {user.group.name}, {user.group_id} -> "
                    f"{schema.group}",
     }
-
-
-@router.get("/info/")
-async def user_info(user_id: int, session: AsyncSession = Depends(get_db)):
-
-    stmt = select(UserModel).where(UserModel.id == user_id)
-    result = await session.execute(stmt)
-    user = result.scalars().first()
-
-    return {"user": user}
