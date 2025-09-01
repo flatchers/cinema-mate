@@ -72,7 +72,7 @@ async def user_registration(schema: UserCreateRequest, session: AsyncSession = D
     try:
         new_user = UserModel(
             email=schema.email,
-            password=password_hash_pwd(password_validator_func(schema.password)),
+            password=password_validator_func(schema.password),
             group_id=user_group.id
         )
         session.add(new_user)
@@ -282,13 +282,17 @@ async def user_login(
     result_user = await session.execute(stmt_user)
     db_user = result_user.scalars().first()
 
+    print("Entered:", password)
+    print("Stored:", db_user._hashed_password)
+    print("Check:", db_user.verify_password_pwd(password))
+
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
 
-    if not verify_password(password, db_user._hashed_password):
+    if not db_user.verify_password_pwd(password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
