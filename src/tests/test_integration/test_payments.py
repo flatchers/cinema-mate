@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -6,8 +5,8 @@ import stripe
 from sqlalchemy import select, Result
 from sqlalchemy.orm import selectinload
 
-from config.settings import settings
-from src.database.models import OrderModel, PaymentModel, OrderItemModel
+from src.config.settings import settings
+from src.database.models import OrderModel, OrderItemModel
 from src.database.models.order import StatusEnum
 from src.database.models.accounts import UserGroup, UserGroupEnum, UserModel
 

@@ -2,14 +2,12 @@ import datetime
 from datetime import datetime, timezone, timedelta
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport
 from uuid import uuid4
 
 from sqlalchemy import Result, select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.functions import count
 
-from security.validations import verify_password, password_hash_pwd, password_validator_func
 from src.database.models import UserModel
 from src.database.models.accounts import ActivationTokenModel, PasswordResetTokenModel, RefreshTokenModel, UserGroup, \
     UserGroupEnum

@@ -1,8 +1,7 @@
 import pytest
 from sqlalchemy import select, Result
-from sqlalchemy.orm import selectinload
 
-from src.database.models.movies import Comment, Genre, Rate
+from src.database.models.movies import Comment, Rate
 from src.database.models.shopping_cart import CartModel, CartItemsModel
 from src.database.models import Movie, PaymentModel, OrderItemModel, OrderModel, UserModel
 from src.database.models.order import StatusEnum
@@ -1520,4 +1519,3 @@ async def test_rate(client, db_session):
     result: Result = await db_session.execute(stmt)
     rate = result.scalars().all()
     assert len(rate) == 1
-

@@ -1,8 +1,6 @@
 import pytest
 from sqlalchemy import select, Result
-from sqlalchemy.orm import selectinload
 
-from src.database.models import CartModel, CartItemsModel
 from src.database.models.accounts import UserGroup, UserGroupEnum, UserModel
 
 
