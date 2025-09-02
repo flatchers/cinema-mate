@@ -2,15 +2,14 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi_filter import FilterDepends
-from sqlalchemy import select, Result, func, delete
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import select, Result, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette import status
 from starlette.responses import JSONResponse
 
 from src.database.models import PaymentModel, OrderModel, OrderItemModel
-from src.database.models.accounts import UserModel, UserGroupEnum, UserGroup
+from src.database.models.accounts import UserModel, UserGroupEnum
 from src.database.models.movies import Movie, Certification, Genre, Director, Star, Comment, Rate, Notification
 from src.database.models.payments import PaymentStatus
 from src.database import get_db
@@ -27,16 +26,29 @@ from src.security.token_manipulation import get_current_user
 router = APIRouter()
 
 
-""" CRUD OPERATIONS FOR MODERATORS """
-
-
-@router.post("/create/", response_model=MovieCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/create/",
+    response_model=MovieCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Creation movie",
+    description="Create a new movie entry in the database with details such as name, year, "
+                "genres, directors, stars, and certification. Returns the full movie record."
+)
 async def film_create(
         schema: MovieCreateSchema,
         db: AsyncSession = Depends(get_db),
         current_user: UserModel = Depends(get_current_user)
 
 ):
+
+    """
+    Creation movie
+
+    schema (MovieCreateSchema): The creation details.
+    db (AsyncSession): The asynchronous database session.
+    current_user (User): The authenticated user performing the action.
+    return: MovieCreateResponse: The created movie with all related details.
+    """
 
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
     result_user = await db.execute(stmt_user)
@@ -127,13 +139,36 @@ async def film_create(
         raise HTTPException(status_code=500, detail=f"error: {str(e)}")
 
 
-@router.patch("/update/{movie_id}/")
+@router.patch(
+    "/update/{movie_id}/",
+    status_code=status.HTTP_200_OK,
+    summary="Update movie by ID",
+    description=(
+            "<h3>Update details of a specific movie by its unique ID.</h3>"
+            "<p>This endpoint updates the details of an existing movie. If the movie with "
+            "the given ID does not exist, a 404 error is returned.</p>"
+    ),
+)
 async def movie_update(
         movie_id: int,
         schema: MovieUpdate,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+
+    """
+    Update an existing movie by ID.
+
+    :param movie_id: The unique ID of the movie to update.
+    :type movie_id: int
+    :param schema: The fields to update, provided as a Pydantic model.
+    :param current_user: The currently authenticated user (must be a moderator).
+    :param db: The asynchronous database session.
+    :return: A dictionary with the updated movie object.
+    :rtype: dict
+    :raises HTTPException 403: If the user does not have moderator permissions.
+    :raises HTTPException 404: If the movie is not found.
+    """
     stmt_movie = select(Movie).where(
         Movie.id == movie_id
     )
@@ -159,12 +194,29 @@ async def movie_update(
     return {"new movie": movie}
 
 
-@router.delete("/delete/{movie_id}/")
+@router.delete(
+    "/delete/{movie_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete movie by ID",
+    description="Deletes a movie from the database by its unique ID. "
+                "If the movie does not exist, returns 404 Not Found."
+)
 async def movie_delete(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Delete an existing movie by ID.
+
+    :param movie_id: The unique ID of the movie to delete.
+    :type: int
+    :param current_user: The currently authenticated user (must be a moderator).
+    :type: UserModel
+    :param db: The asynchronous database session.
+    :type: AsyncSession
+    :return: Dictionary with a message about successful deletion
+    """
     stmt_movie = select(Movie).where(Movie.id == movie_id)
     result: Result = await db.execute(stmt_movie)
     movie = result.scalars().first()
@@ -208,7 +260,18 @@ async def movie_delete(
     return {"detail": "Movie deleted successfully"}
 
 
-@router.get("/lists/", response_model=MoviesPaginationResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/lists/",
+    response_model=MoviesPaginationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List of movies",
+    description=(
+        "Returns a paginated list of movies from the database. "
+        "Supports filtering by fields (e.g., genre, year, rating) "
+        "and sorting by different attributes. "
+        "Pagination is controlled with `page` and `per_page` parameters."
+    )
+)
 async def movie_list(
         page: int = Query(1, ge=1),
         per_page: int = Query(10, ge=1),
@@ -216,6 +279,22 @@ async def movie_list(
         sort: ItemQueryParams = Depends(),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Returns a list of movies with pagination, filtering, and sorting support.
+
+    :param page: Page number (starting from 1).
+    :type page: int
+    :param per_page: Number of movies per page.
+    :type per_page: int
+    :param movie_filter: Filters for selecting movies (e.g., genre, director, etc.).
+    :type movie_filter: MovieFilter
+    :param sort: Sorting parameters for the movie list.
+    :type sort: ItemQueryParams
+    :param db: Async database session.
+    :type db: AsyncSession
+    :return: Object containing a paginated list of movies.
+    :rtype: MoviesPaginationResponse
+    """
     order_column = getattr(Movie, sort.order_by)
     if sort.descending:
         order_column = order_column.desc()
@@ -243,9 +322,28 @@ async def movie_list(
     )
 
 
-@router.post("/search/", response_model=List[MovieDetailResponse], status_code=status.HTTP_200_OK)
+@router.post(
+    "/search/",
+    response_model=List[MovieDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Search movies",
+    description=(
+            "Search movies from the database"
+            "Returns list of found movies"
+            "Search by fields (e.g. name, description, stars, directors)"
+    )
+)
 async def movie_search(search: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+    """
+     Search existing movies by specific fields.
 
+     :param search: Search query string (e.g., title, genres, directors, stars).
+     :type search: str
+     :param db: Async database session.
+     :type db: AsyncSession
+     :return: List of matching movies.
+     :rtype: list[Movie]
+     """
     stmt = (select(Movie)
             .options(selectinload(Movie.certification))
             .options(selectinload(Movie.genres))
@@ -281,9 +379,24 @@ async def movie_search(search: Optional[str] = None, db: AsyncSession = Depends(
     return movies
 
 
-@router.get("/detail/", response_model=MovieDetailResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/detail/",
+    response_model=MovieDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Movie detail",
+    description="Returns detailed movie by movie id"
+)
 async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Returns detailed information about a specific movie by its ID.
 
+    :param movie_id: The unique ID of the movie.
+    :type: int
+    :param db: Async database session
+    :type: AsyncSession
+    :return: Dictionary with a found movie
+    :rtype: dict
+    """
     stmt = (select(Movie).where(Movie.id == movie_id)
             .options(selectinload(Movie.certification))
             .options(selectinload(Movie.genres))
@@ -297,12 +410,28 @@ async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
     return movie
 
 
-@router.post("/like/{movie_id}/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/like/{movie_id}/",
+    status_code=status.HTTP_201_CREATED,
+    summary="Like movie",
+    description="Add or remove a like for a movie by its ID."
+)
 async def add_and_remove_like(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Returns adding/removing like on specific movie by its ID.
+
+    :param movie_id: The unique ID of the movie.
+    :type: int
+    :param current_user: The currently authenticated user.
+    :type: UserModel
+    :param db: Async database session
+    :type: AsyncSession
+    :return: Dictionary obout likes count
+    """
     stmt = select(Movie).options(selectinload(Movie.like_users)).where(Movie.id == movie_id)
     result: Result = await db.execute(stmt)
     movie = result.scalars().first()
@@ -322,14 +451,31 @@ async def add_and_remove_like(
     return {"like_count": movie.like_count}
 
 
-@router.post("/{movie_id}/comments/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{movie_id}/comments/",
+    status_code=status.HTTP_201_CREATED,
+    summary="Add comment to movie",
+    description="Create a new comment for a movie specified by its ID."
+)
 async def write_comments(
         movie_id: int,
         schema: CommentSchema,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Returns new comment for the movie
 
+    :param movie_id: The unique ID of the movie.
+    :type: int
+    :param schema: The request body containing the comment data
+    :type: CommentSchema
+    :param current_user: The currently authenticated user.
+    :param db: Async database session
+    :type: AsyncSession
+    :return: The newly created comment object linked to the movie.
+    :rtype: Comment
+    """
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
     result_user: Result = await db.execute(stmt_user)
     user = result_user.scalars().first()
@@ -348,12 +494,28 @@ async def write_comments(
     return db_comment
 
 
-@router.post("/favourite/{movie_id}/")
+@router.post(
+    "/favourite/{movie_id}/",
+    summary="Create/remove favorite movie",
+    description="Add a movie to the user's favorites list or remove it if it's already marked as favorite."
+)
 async def add_and_remove_favourite(
         movie_id: int,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Toggle a movie in the user's favorites list.
+
+    :param movie_id: The unique ID of the movie to add or remove from favorites.
+    :type movie_id: int
+    :param current_user: The currently authenticated user.
+    :type current_user: UserModel
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :return: A JSON response containing a success message.
+    :rtype: JSONResponse
+    """
     stmt_user = (select(UserModel)
                  .options(selectinload(UserModel.favourite_movies))
                  .where(UserModel.id == current_user.id)
@@ -385,8 +547,23 @@ async def add_and_remove_favourite(
     return JSONResponse(content={"message": message}, status_code=response_status)
 
 
-@router.get("/favourite/list/")
+@router.get(
+    "/favourite/list/",
+    status_code=status.HTTP_200_OK,
+    summary="List of favourite movies",
+    description="Return list of favourite movies from the database."
+)
 async def favourite_list(current_user: UserModel = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Get the list of favorite movies for the authenticated user.
+
+    :param current_user: The currently authenticated user.
+    :type current_user: UserModel
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :return: A list of movies marked as favorite by the user.
+    :rtype: List[Movie]
+    """
     stmt_user = (select(UserModel)
                  .options(selectinload(UserModel.favourite_movies))
                  .where(UserModel.id == current_user.id)
@@ -400,7 +577,16 @@ async def favourite_list(current_user: UserModel = Depends(get_current_user), db
     return user.favourite_movies
 
 
-@router.get("/favourite/search/", status_code=status.HTTP_200_OK)
+@router.get(
+    "/favourite/search/",
+    status_code=status.HTTP_200_OK,
+    summary="search favourite movies",
+    description=(
+            "Search FAVOURITE movies from the database"
+            "Returns list of found movies"
+            "Search by fields (e.g. name, description, stars, directors)"
+    )
+)
 async def favourite_search(
         search: Optional[str] = Query(None),
         current_user: UserModel = Depends(get_current_user),
@@ -408,7 +594,22 @@ async def favourite_search(
         sort: ItemQueryParams = Depends(),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Returns a list of favourite movies with filtering, and sorting support.
 
+    :param search: Search query string (e.g., title, genres, directors, stars).
+    :type search: str
+    :param current_user: The currently authenticated user.
+    :type current_user: UserModel
+    :param movie_filter: Filters for selecting movies (e.g., genre, director, etc.).
+    :type movie_filter: MovieFilter
+    :param sort: Sorting parameters for the movie list.
+    :type sort: ItemQueryParams
+    :param db: Async database session.
+    :type db: AsyncSession
+    :return: Dictionary containing list of movies.
+    :rtype: dict
+    """
     stmt = select(UserModel).options(
         selectinload(UserModel.favourite_movies)
         .selectinload(Movie.directors),
@@ -455,8 +656,24 @@ async def favourite_search(
     return filtered_list
 
 
-@router.get("/genre/{genre_id}/", response_model=MoviesForGenreResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/genre/{genre_id}/",
+    response_model=MoviesForGenreResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Movies of genre",
+    description="Search movies by genre ID"
+)
 async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    """
+    Get all movies for a specific genre.
+
+    :param genre_id: The unique ID of the genre to filter movies.
+    :type genre_id: int
+    :param db: Async database session.
+    :type db: AsyncSession
+    :return: A response containing the list of movies for the genre, all genres, and the total movie count.
+    :rtype: MoviesForGenreResponse
+    """
     stmt_movies = select(Movie).join(Movie.genres).options(selectinload(Movie.genres)).where(Genre.id == genre_id)
     result: Result = await db.execute(stmt_movies)
     movies = result.scalars().all()
@@ -477,13 +694,32 @@ async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Dep
     return MoviesForGenreResponse(count_movies=count_movies, genres=genres, movies=movies)
 
 
-@router.post("/score/{movie_id}/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/score/{movie_id}/",
+    status_code=status.HTTP_201_CREATED,
+    summary="Score of the movie",
+    description="Add score of the rating by movie"
+)
 async def rate(
         movie_id: int,
         schema: ScoreRequestSchema,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Add score of the movie to database for the authenticated user.
+
+    :param movie_id: The unique ID of the movie.
+    :type movie_id: int
+    :param schema: The request body containing the score data.
+    :type schema: ScoreRequestSchema
+    :param current_user: The currently authenticated user.
+    :type current_user: UserModel
+    :param db: Database session dependency.
+    :type: AsyncSession
+    :return: Dictionary of new score
+    :rtype: dict
+    """
     stmt_rate = select(Rate).where(Rate.movie_id == movie_id, Rate.user_id == current_user.id)
     result: Result = await db.execute(stmt_rate)
     rate = result.scalars().first()
@@ -506,13 +742,32 @@ async def rate(
     return {"message": f"updated rate - {rate.rate}"}
 
 
-@router.post("/notification/{comment_id}/")
+@router.post(
+    "/notification/{comment_id}/",
+    status_code=status.HTTP_200_OK,
+    summary="Comment for notification",
+    description="Notifies the user about a received comment by the comment ID"
+)
 async def notification_comment(
         comment_id: int,
         schema: CommentSchema,
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Send a notification to a user about a received comment.
+
+    :param comment_id: The unique ID of the comment that triggered the notification.
+    :type comment_id: int
+    :param schema: The comment data payload.
+    :type schema: CommentSchema
+    :param current_user: The authenticated user sending the notification.
+    :type current_user: UserModel
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :return: A dictionary containing the newly created notification.
+    :rtype: dict
+    """
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
     result: Result = await db.execute(stmt_user)
     user = result.scalars().first()
@@ -529,4 +784,4 @@ async def notification_comment(
 
     db.add(new_notif)
     await db.commit()
-    return {new_notif}
+    return {"new notification": new_notif}

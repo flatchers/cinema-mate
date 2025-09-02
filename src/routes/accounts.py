@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, status, Depends, HTTPException
@@ -16,11 +16,11 @@ from src.notifications.send_email.send_activation_email_complete import send_act
 from src.notifications.send_email.send_password_confirm_email import send_password_confirm
 from src.notifications.send_email.send_password_reset_email import send_password_reset_email
 from src.schemas.accounts import UserCreateResponse, UserCreateRequest, TokenActivationRequest, \
-    TokenResetPasswordRequest, UserLoginRequest, UserLoginResponse, TokenResetPasswordCompleteRequest, MessageResponse, \
+    TokenResetPasswordRequest, UserLoginResponse, TokenResetPasswordCompleteRequest, MessageResponse, \
     AccessTokenResponse, RefreshTokenRequest, AdminUpdateRequest
 from src.security.token_manipulation import create_refresh_token, create_access_token, get_current_user, \
     authenticate_user, get_user_token, decode_token
-from src.security.validations import verify_password, password_validator_func, password_hash_pwd
+from src.security.validations import password_validator_func, password_hash_pwd
 
 router = APIRouter()
 
