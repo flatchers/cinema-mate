@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi_filter import FilterDepends
 from sqlalchemy import select, Result, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from starlette import status
 from starlette.responses import JSONResponse
 
@@ -345,10 +345,10 @@ async def movie_search(search: Optional[str] = None, db: AsyncSession = Depends(
      :rtype: list[Movie]
      """
     stmt = (select(Movie)
-            .options(selectinload(Movie.certification))
-            .options(selectinload(Movie.genres))
-            .options(selectinload(Movie.directors))
-            .options(selectinload(Movie.stars))
+            .options(joinedload(Movie.certification))
+            .options(joinedload(Movie.genres))
+            .options(joinedload(Movie.directors))
+            .options(joinedload(Movie.stars))
             .options(selectinload(Movie.comments).selectinload(Comment.user))
             )
     result: Result = await db.execute(stmt)
@@ -398,10 +398,10 @@ async def movie_detail(movie_id: int, db: AsyncSession = Depends(get_db)):
     :rtype: dict
     """
     stmt = (select(Movie).where(Movie.id == movie_id)
-            .options(selectinload(Movie.certification))
-            .options(selectinload(Movie.genres))
-            .options(selectinload(Movie.directors))
-            .options(selectinload(Movie.stars))
+            .options(joinedload(Movie.certification))
+            .options(joinedload(Movie.genres))
+            .options(joinedload(Movie.directors))
+            .options(joinedload(Movie.stars))
             .options(selectinload(Movie.comments).selectinload(Comment.user))
             )
     result: Result = await db.execute(stmt)
@@ -674,7 +674,7 @@ async def movies_of_genre(genre_id: Optional[int] = None, db: AsyncSession = Dep
     :return: A response containing the list of movies for the genre, all genres, and the total movie count.
     :rtype: MoviesForGenreResponse
     """
-    stmt_movies = select(Movie).join(Movie.genres).options(selectinload(Movie.genres)).where(Genre.id == genre_id)
+    stmt_movies = select(Movie).join(Movie.genres).options(joinedload(Movie.genres)).where(Genre.id == genre_id)
     result: Result = await db.execute(stmt_movies)
     movies = result.scalars().all()
     if not movies:
