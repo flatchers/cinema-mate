@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, Result
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from starlette import status
 
 from src.database.models import UserModel, Movie, CartItemsModel, CartModel
-from src.database.models.accounts import UserGroupEnum, UserGroup
+from src.database.models.accounts import UserGroupEnum
 from src.database.models.shopping_cart import NotificationDeleteModel
 from src.database import get_db
 from src.schemas.shopping_carts import MovieOut, MovieListResponse
@@ -67,7 +67,7 @@ async def add_cart_item(
     :return: Cart item details.
     :rtype: dict
     """
-    stmt = select(UserModel).options(selectinload(UserModel.cart)).where(UserModel.id == current_user.id)
+    stmt = select(UserModel).options(joinedload(UserModel.cart)).where(UserModel.id == current_user.id)
     result: Result = await session.execute(stmt)
     user = result.scalars().first()
 
@@ -302,7 +302,7 @@ async def items_detail(
     :return: Dictionary containing detailed information of the selected user's cart items
     :rtype: dict
     """
-    stmt = select(UserModel).options(selectinload(UserModel.group)).where(UserModel.id == current_user.id)
+    stmt = select(UserModel).options(joinedload(UserModel.group)).where(UserModel.id == current_user.id)
     result: Result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
