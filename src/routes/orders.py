@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, Result
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from starlette import status
 
 from src.database.models import UserModel, CartItemsModel, CartModel, OrderModel, OrderItemModel
@@ -176,7 +176,7 @@ async def order_list(
     :return: OrderSchemaResponse object containing a list of orders.
     :rtype: OrderSchemaResponse
     """
-    stmt = select(OrderModel).options(selectinload(OrderModel.order_items)).where(OrderModel.user_id == current_user.id)
+    stmt = select(OrderModel).options(joinedload(OrderModel.order_items)).where(OrderModel.user_id == current_user.id)
     result: Result = await db.execute(stmt)
     orders = result.scalars().all()
     if not orders:
