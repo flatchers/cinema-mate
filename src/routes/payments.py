@@ -1,5 +1,4 @@
 import json
-from typing import Optional
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -27,7 +26,43 @@ router = APIRouter()
 DOMAIN = "http://127.0.0.1:8000"
 
 
-@router.post("/add/{order_id}/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/add/{order_id}/",
+    summary="Create payment",
+    description=(
+            "<h3>Create a new payment via the Stripe payment system</h3>"
+            "<p>Creates a new payment if one does not already exist. If a payment "
+            "already exists, a <code>409 Conflict</code> is returned.</p>"
+            "<p>Upon successful creation, the user is redirected to the Stripe Checkout page.</p>"
+    ),
+    responses={
+        201: {
+            "description": "Payment was created successful and redirected to the Stripe Checkout page",
+            "content": {
+                "application/json": {
+                    "example": {"response": "payment add successfully"}
+                }
+            }
+        },
+        404: {
+            "description": "If the order does not exist or does not belong to the current user.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Order not found"}
+                }
+            }
+        },
+        409: {
+            "description": "If the payment already exist for the order.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "payment already exist"}
+                }
+            }
+        },
+    },
+    status_code=status.HTTP_201_CREATED
+)
 async def payment_add(
         order_id: int,
         current_user: UserModel = Depends(get_current_user),
@@ -122,21 +157,93 @@ async def payment_add(
     }
 
 
-@router.get("/successful/")
+@router.get(
+    "/successful/",
+    summary="payment successful response",
+    description="This endpoint is called if the `my_webhook_view` function returns status code 200. "
+                "It confirms that the order has been paid successfully.",
+    responses={
+        200: {
+            "description": "Order is paid, payment was successful",
+            "content": {
+                "application/json": {
+                    "example": {"response": "payment was successful"}
+                }
+            }
+        }
+    },
+    status_code=200
+)
 async def successful_payment():
+    """
+    Returns a confirmation response when the payment was successful.
+    """
     return {"response": "payment was successful"}
 
 
-@router.get("/cancel/")
+@router.get(
+    "/cancel/",
+    summary="Payment cancelled response",
+    description="This endpoint is called if the payment was cancelled or failed. "
+                "It confirms that the payment process did not complete.",
+    responses={
+        200: {
+            "description": "Payment was cancelled or failed",
+            "content": {
+                "application/json": {
+                    "example": {"response": "payment failed"}
+                }
+            },
+        },
+    },
+    status_code=status.HTTP_200_OK,
+)
 async def cancel_payment():
+    """
+    Returns a response indicating that the payment was cancelled or failed.
+    """
     return {"response": "payment failed"}
 
 
-@router.post("/webhook/", status_code=status.HTTP_200_OK)
+@router.post(
+    "/webhook/",
+    summary="The stripe webhook",
+    description=(
+            "Receives and processes events from Stripe. "
+            "Validates payload and signature if `WEBHOOK_ENDPOINT_SECRET` is set. "
+            "Returns 200 if the event is successfully handled, "
+            "or raises 400 in case of invalid payload/signature."
+    ),
+    responses={
+        200: {
+            "description": "Event is successfully handled.",
+            "content": {
+                "application/json": {
+                    "example": {"response": "Successful"}
+                }
+            }
+        },
+        400: {
+            "description": "Invalid payload or signature"
+        }
+    },
+    status_code=status.HTTP_200_OK
+)
 async def my_webhook_view(
         request: Request,
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Stripe webhook endpoint.
+
+    Receives events from Stripe, validates payload and signature (if WEBHOOK_ENDPOINT_SECRET is set),
+    and processes different types of events such as payment success or failure.
+
+    :param request: FastAPI Request object containing the raw webhook payload and headers.
+    :param db: Async SQLAlchemy session, used to update order/payment status in the database.
+    :return: JSON response indicating success, e.g., {"status": "success"}.
+             If the payload is invalid or signature verification fails, raises HTTPException with status 400.
+    """
     payload = await request.body()
     event = None
 
@@ -231,12 +338,47 @@ async def my_webhook_view(
     return {"response": "Successful"}
 
 
-@router.post("/refund/{external_payment_id}/", status_code=status.HTTP_200_OK)
+@router.post(
+    "/refund/{external_payment_id}/",
+    summary="Payment refund",
+    description=(
+            "<h3>Receives and processes refund event</h3>"
+            "<p>Creates refund event, validates external payment id, changes payment status-> REFUND</p>"
+            "<p>If 200 if the event successfully handled "
+            "or raises 400 error in case of entering invalid data</p>"
+    ),
+    responses={
+        200: {
+            "description": "Refund",
+            "content":
+                {
+                    "application/json": {
+                        "example": {"response": "Refund Successful"}
+                    }
+                }
+        },
+        400: {
+            "description": "Invalid entering data"
+        }
+    },
+    status_code=status.HTTP_200_OK)
 async def payment_refund(
         external_payment_id: str,
         db: AsyncSession = Depends(get_db),
         current_user: UserModel = Depends(get_current_user)
 ):
+    """
+    Refunds a payment through the payment provider (e.g., Stripe).
+
+    This endpoint attempts to refund a previously completed payment based on
+    its external identifier. Only the authenticated user associated with the
+    payment can request a refund.
+
+    :param external_payment_id: External payment ID to be refunded.
+    :param db: Async SQLAlchemy session.
+    :param current_user: Authenticated user requesting the refund. Retrieved via dependency injection.
+    :return: JSON response confirming message.
+    """
     stmt = select(PaymentModel).where(
         PaymentModel.user_id == current_user.id,
         PaymentModel.external_payment_id == external_payment_id
@@ -267,31 +409,107 @@ async def payment_refund(
     return {"response": "Refund Successful"}
 
 
-@router.get("/history/", status_code=status.HTTP_200_OK)
+@router.get(
+    "/history/",
+    summary="Payment list",
+    description="Returns list of payment of currently user",
+    responses={
+        200: {
+            "description": "shows all payments",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "response": [
+                            {
+                                "id": 1,
+                                "amount": 49.99,
+                                "currency": "usd",
+                                "status": "succeeded",
+                                "created_at": "2025-09-05T12:00:00Z"
+                            },
+                            {
+                                "id": 2,
+                                "amount": 15.00,
+                                "currency": "usd",
+                                "status": "refunded",
+                                "created_at": "2025-09-04T10:30:00Z"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid entering data"
+        }
+    },
+    status_code=status.HTTP_200_OK
+)
 async def payment_list(
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Returns the list of payments for the currently authenticated user.
+
+    :param current_user: The authenticated user (retrieved from JWT/session).
+    :param db: Async SQLAlchemy session used to query the database.
+    :return: Dictionary with a list of payments,
+    """
     stmt = select(PaymentModel).where(PaymentModel.user_id == current_user.id)
     result: Result = await db.execute(stmt)
     payments = result.scalars().all()
+    if not payments:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No payments")
 
     return {"response": payments}
 
 
-@router.get("/moderator/list/")
+@router.get(
+    "/moderator/list/",
+    summary="Payment List (must be a moderator)",
+    description=(
+            "<h3>Moderators can see payment list by user ID</h3>"
+            "<p>This endpoint allows moderators to retrieve payment history of a specific user. "
+            "Supports filtering via query parameters.</p>"
+    ),
+    responses={
+        200: {
+            "description": "List of payments for the requested user.",
+        },
+        403: {
+            "description": "Access denied.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Access forbidden for {user.group.name}: insufficient permissions."}
+                }
+            }
+        }
+    },
+    status_code=status.HTTP_200_OK
+)
 async def payment_list_for_moderator(
         payment_filter: PaymentFilter = FilterDepends(PaymentFilter),
         current_user: UserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+
+    Returns a list of payments filtered by user ID or other parameters.
+    Accessible only to users with moderator privileges.
+
+    :param payment_filter: Filtering options for payments
+    :param current_user: The authenticated user making the request.
+    :param db: Async SQLAlchemy session used to query payment data.
+    :return: Dictionary containing a list of payments for the requested user
+    """
     stmt = select(UserModel).options(joinedload(UserModel.group)).where(UserModel.id == current_user.id)
     result: Result = await db.execute(stmt)
     user = result.scalars().first()
 
     if user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access forbidden for {user.group.name}: insufficient permissions."
         )
 
