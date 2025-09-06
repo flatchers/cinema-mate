@@ -11,7 +11,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install dependencies
-        run: pip install -r flake8 black mypy
+        run: pip install flake8 black mypy
       - name: Run linters
         run: flake8
       - name: Install dependencies
