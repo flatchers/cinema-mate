@@ -1,8 +1,7 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
-from src.database.models.movies import Comment
 from src.schemas.accounts import UserCreate
 
 
@@ -28,37 +27,32 @@ class MoviesPaginationResponse(BaseModel):
 class CertificationResponse(BaseModel):
     name: str
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GenreResponse(BaseModel):
     name: str
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DirectorResponse(BaseModel):
     name: str
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StarResponse(BaseModel):
     name: str
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommentResponse(BaseModel):
     user: UserCreate
     comment: str
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieCreateResponse(BaseModel):
@@ -71,8 +65,7 @@ class MovieCreateResponse(BaseModel):
     directors: list[str]
     stars: list[str]
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieCreateSchema(BaseModel):
@@ -90,8 +83,7 @@ class MovieCreateSchema(BaseModel):
     directors: Optional[list[str]] = Field(None)
     stars: Optional[list[str]] = Field(None)
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieDetailResponse(BaseModel):
@@ -111,15 +103,13 @@ class MovieDetailResponse(BaseModel):
     stars: List[StarResponse]
     comments: List[CommentResponse]
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommentSchema(BaseModel):
     comments: str
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MoviesForGenreResponse(BaseModel):
@@ -127,8 +117,7 @@ class MoviesForGenreResponse(BaseModel):
     genres: List[GenreResponse]
     movies: List[MovieList]
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ScoreRequestSchema(BaseModel):
@@ -146,5 +135,4 @@ class MovieUpdate(BaseModel):
     description: str = None
     price: float = None
 
-    class Config:
-        from_attributes: bool = True
+    model_config = ConfigDict(from_attributes=True)

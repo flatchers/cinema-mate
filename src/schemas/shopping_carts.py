@@ -1,16 +1,13 @@
 from typing import List
 
-from pydantic import BaseModel
-
-from src.database.models.movies import Genre
+from pydantic import BaseModel, ConfigDict
 
 
 class GenreOut(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieOut(BaseModel):
@@ -19,13 +16,10 @@ class MovieOut(BaseModel):
     genres: list[str]
     year: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieListResponse(BaseModel):
     movies: List[MovieOut]
 
-    class Config:
-        from_attributes = True
-
+    model_config = ConfigDict(from_attributes=True)
