@@ -13,7 +13,7 @@ jobs:
       - name: Install dependencies
         run: pip install flake8 black mypy
       - name: Run linters
-        run: flake8 src/
+        run: PYTHONPATH=src flake8
       - name: Install dependencies
         run: pip install -r requirements.txt pytest pytest-asyncio
       - name: Run tests
