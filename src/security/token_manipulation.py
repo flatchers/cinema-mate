@@ -22,13 +22,14 @@ REFRESH_TOKEN_EXPIRE_MINUTES = 30 * 24 * 7
 
 
 fake_users_db = {
-    "_hashed_password": "$2b$12$iEcfZbwkgq.k4YjNtcUrE.dqe.iNT9DFLzfI86JawWAUji3R7B/fG",
+    "_hashed_password": "$2b$12$iEcfZbwkgq.k4YjNtcUrE."
+                        "dqe.iNT9DFLzfI86JawWAUji3R7B/fG",
     "is_active": True,
     "updated_at": "2025-04-14T10:05:48",
     "id": 1,
     "email": "user1@example.com",
     "created_at": "2025-04-14T10:05:11",
-    "group_id": 1
+    "group_id": 1,
 }
 
 
@@ -73,9 +74,10 @@ async def get_user_by_id(user_id, db: AsyncSession):
     return result.scalar_one_or_none()
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
-                           db: AsyncSession = Depends(get_db)
-                           ):
+async def get_current_user(
+        token: Annotated[str, Depends(oauth2_scheme)],
+        db: AsyncSession = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -109,12 +111,12 @@ async def get_current_active_user(
     return current_user
 
 
-async def authenticate_user(user_id: str, password: str, db: AsyncSession = Depends(get_db)):
+async def authenticate_user(
+    user_id: str, password: str, db: AsyncSession = Depends(get_db)
+):
     user = await get_user_by_id(user_id, db)
     if not user:
         return False
     if not verify_password(password, user.password):
         return False
     return user
-
-

@@ -1,13 +1,10 @@
 import os
 
-from pydantic import ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     MODE: str = "DEV"
-
-    DATABASE_URL: str | None = None
 
     POSTGRES_HOST: str | None = None
     POSTGRES_PORT: int | None = None
@@ -20,7 +17,10 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str | None = None
     WEBHOOK_ENDPOINT_SECRET: str | None = None
 
-    model_config = SettingsConfigDict(env_file=".test.env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".test.env" if os.getenv("MODE") == "TEST"
+        else ".env", extra="ignore"
+    )
 
 
 settings = Settings()
