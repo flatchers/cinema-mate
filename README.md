@@ -86,9 +86,9 @@ docker run -p 8000:8000 cinema:latest
 
 Run all tests:
 
-- **export MODE=TEST      # Linux/macOS
-- **$env:MODE="TEST"      # Windows PowerShell
-- **PYTHONPATH=src pytest
+- **export MODE=TEST**      # Linux/macOS
+- **$env:MODE="TEST"**      # Windows PowerShell
+- **PYTHONPATH=src pytest**
 
 ---
 
@@ -104,13 +104,14 @@ Swagger UI: http://127.0.0.1:8000/docs
 
 This project uses GitHub Actions for:
 
-- **Running linters (flake8, black)
+- **Running linters** (flake8, black)
 
-- **Running tests (pytest)
+- **Running tests** (pytest)
 
-- **Building and pushing Docker images to AWS ECR
+- **Building and pushing Docker images to AWS ECR**
 
-- **Deploying to AWS ECS
+- **Deploying to AWS ECS**
+
 
 
 
