@@ -24,19 +24,12 @@ class OrderModel(Base):
     __tablename__ = "orders"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
-    user: Mapped["UserModel"] = relationship(
-        "UserModel",
-        back_populates="orders"
-    )
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="orders")
     order_items: Mapped[list["OrderItemModel"]] = relationship(
         "OrderItemModel", back_populates="order", cascade="all, delete-orphan"
     )
@@ -57,11 +50,7 @@ class OrderItemModel(Base):
     __tablename__ = "order_items"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_id: Mapped[int] = mapped_column(
         ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
@@ -73,10 +62,7 @@ class OrderItemModel(Base):
     order: Mapped["OrderModel"] = relationship(
         "OrderModel", back_populates="order_items"
     )
-    movie: Mapped["Movie"] = relationship(
-        "Movie",
-        back_populates="order_items"
-    )
+    movie: Mapped["Movie"] = relationship("Movie", back_populates="order_items")
     payment_items: Mapped[List["PaymentItemModel"]] = relationship(
         "PaymentItemModel", back_populates="order_item"
     )

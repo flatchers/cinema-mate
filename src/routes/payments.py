@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -8,13 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 from starlette import status
 from starlette.responses import JSONResponse
+from stripe import SignatureVerificationError
 
-from src.database.models import (
-    UserModel,
-    PaymentModel,
-    OrderModel,
-    OrderItemModel
-)
+from src.database.models import UserModel, PaymentModel, OrderModel, OrderItemModel
 from src.database.models.accounts import UserGroupEnum
 from src.database.models.order import StatusEnum
 from src.database.models.payments import PaymentStatus, PaymentItemModel
@@ -57,22 +54,12 @@ DOMAIN = "http://127.0.0.1:8000"
         404: {
             "description": "If the order does not exist "
             "or does not belong to the current user.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Order not found"
-                    }
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Order not found"}}},
         },
         409: {
             "description": "If the payment already exist for the order.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "payment already exist"
-                    }
-                }
+                "application/json": {"example": {"detail": "payment already exist"}}
             },
         },
     },
@@ -119,8 +106,7 @@ async def payment_add(
     stmt = (
         select(OrderModel)
         .options(
-            selectinload(OrderModel.order_items)
-            .selectinload(OrderItemModel.movie)
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie)
         )
         .where(
             OrderModel.id == order_id,
@@ -135,14 +121,13 @@ async def payment_add(
             status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
         )
 
-    stmt = select(PaymentModel).where(PaymentModel.order_id == order_id)
-    result: Result = await session.execute(stmt)
-    payment = result.scalars().first()
+    stmt_payment = select(PaymentModel).where(PaymentModel.order_id == order_id)
+    result_payment: Result = await session.execute(stmt_payment)
+    payment = result_payment.scalars().first()
 
     if payment:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="payment already exist"
+            status_code=status.HTTP_409_CONFLICT, detail="payment already exist"
         )
 
     checkout_session = stripe.checkout.Session.create(
@@ -155,7 +140,7 @@ async def payment_add(
                             [item.movie.name for item in order.order_items]
                         )
                     },
-                    "unit_amount": int(order.total_amount) * 100,
+                    "unit_amount": int(Decimal(str(order.total_amount)) * 100),
                 },
                 "quantity": 1,
             }
@@ -198,11 +183,7 @@ async def payment_add(
         200: {
             "description": "Order is paid, payment was successful",
             "content": {
-                "application/json": {
-                    "example": {
-                        "response": "payment was successful"
-                    }
-                }
+                "application/json": {"example": {"response": "payment was successful"}}
             },
         }
     },
@@ -251,22 +232,13 @@ async def cancel_payment():
     responses={
         200: {
             "description": "Event is successfully handled.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "response": "Successful"
-                    }
-                }
-            },
+            "content": {"application/json": {"example": {"response": "Successful"}}},
         },
         400: {"description": "Invalid payload or signature"},
     },
     status_code=status.HTTP_200_OK,
 )
-async def my_webhook_view(
-        request: Request,
-        db: AsyncSession = Depends(get_db)
-):
+async def my_webhook_view(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Stripe webhook endpoint.
 
@@ -286,10 +258,7 @@ async def my_webhook_view(
     event = None
 
     try:
-        event = stripe.Event.construct_from(
-            json.loads(payload),
-            stripe.api_key
-        )
+        event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
     except ValueError as e:
         # Invalid payload
         raise HTTPException(
@@ -304,7 +273,7 @@ async def my_webhook_view(
             event = stripe.Webhook.construct_event(
                 payload, sig_header, settings.WEBHOOK_ENDPOINT_SECRET
             )
-        except stripe.error.SignatureVerificationError as e:
+        except SignatureVerificationError as e:
             print("⚠️  Webhook signature verification failed." + str(e))
             return JSONResponse(status_code=400, content={"success": False})
 
@@ -325,6 +294,8 @@ async def my_webhook_view(
             payment.status = PaymentStatus.SUCCESSFUL
             payment.order.status = StatusEnum.PAID
             user = await db.get(UserModel, payment.user_id)
+            if not user:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
             send_payment_confirmation_email(user.email)
             await db.commit()
 
@@ -334,26 +305,22 @@ async def my_webhook_view(
     elif event.type == "payment_intent.canceled":
         payment_intent = event.data.object
         payment_id = payment_intent["id"]
-        cancellation_reason = payment_intent.get(
-            "cancellation_reason",
-            "unspecified"
-        )
-        stmt = (
+        cancellation_reason = payment_intent.get("cancellation_reason", "unspecified")
+        stmt_payment = (
             select(PaymentModel)
             .options(selectinload(PaymentModel.user))
             .options(selectinload(PaymentModel.order))
             .where(PaymentModel.external_payment_id == payment_id)
         )
-        result: Result = await db.execute(stmt)
-        payment = result.scalars().first()
+        result_payment: Result = await db.execute(stmt_payment)
+        payment = result_payment.scalars().first()
 
         if payment:
             payment.status = PaymentStatus.CANCELED
             await db.commit()
 
         print(
-            f"⚠️ PaymentIntent canceled: {payment_id}, "
-            f"reason: {cancellation_reason}"
+            f"⚠️ PaymentIntent canceled: {payment_id}, " f"reason: {cancellation_reason}"
         )
         return {
             "status": event.type,
@@ -363,25 +330,28 @@ async def my_webhook_view(
     elif event.type == "checkout.session.completed":
         session = event.data.object
         checkout_id = session["id"]
-        stmt = (
+        stmt_payment_session = (
             select(PaymentModel)
             .options(selectinload(PaymentModel.user))
             .options(selectinload(PaymentModel.order))
             .where(PaymentModel.external_payment_id == checkout_id)
         )
-        result: Result = await db.execute(stmt)
-        payment = result.scalars().first()
+        result_payment_session: Result = await db.execute(stmt_payment_session)
+        payment = result_payment_session.scalars().first()
 
         if payment:
             payment.status = PaymentStatus.SUCCESSFUL
             payment.order.status = StatusEnum.PAID
-            stmt = (
+            stmt_user = (
                 select(UserModel)
                 .join(PaymentModel)
                 .where(UserModel.id == payment.user_id)
             )
-            result: Result = await db.execute(stmt)
-            current_user = result.scalars().first()
+            result_user: Result = await db.execute(stmt_user)
+            current_user = result_user.scalars().first()
+
+            if not current_user:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
             send_payment_confirmation_email(current_user.email)
             await db.commit()
             print(f"✅ Checkout session completed: {checkout_id}")
@@ -407,11 +377,7 @@ async def my_webhook_view(
         200: {
             "description": "Refund",
             "content": {
-                "application/json": {
-                    "example": {
-                        "response": "Refund Successful"
-                    }
-                }
+                "application/json": {"example": {"response": "Refund Successful"}}
             },
         },
         400: {"description": "Invalid entering data"},
@@ -443,30 +409,27 @@ async def payment_refund(
     result: Result = await db.execute(stmt)
     payment = result.scalars().first()
 
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
     try:
         session = stripe.checkout.Session.retrieve(external_payment_id)
-        payment_intent_id = session.payment_intent
+        raw_payment_intent = session.payment_intent
     except Exception as e:
         raise HTTPException(
-            status_code=400,
-            detail=f"Failed to retrieve Stripe session: {str(e)}"
+            status_code=400, detail=f"Failed to retrieve Stripe session: {str(e)}"
         )
+    if isinstance(raw_payment_intent, str):
 
-    if not payment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Not found"
+        refund = stripe.Refund.create(
+            payment_intent=raw_payment_intent, amount=int(payment.amount) * 100
         )
+        if refund.status == "succeeded":
+            payment.status = PaymentStatus.REFUNDED
 
-    refund = stripe.Refund.create(
-        payment_intent=payment_intent_id, amount=int(payment.amount) * 100
-    )
-    if refund.status == "succeeded":
-        payment.status = PaymentStatus.REFUNDED
-
-        await db.commit()
-    else:
-        raise HTTPException(status_code=400, detail="Refund failed")
+            await db.commit()
+        else:
+            raise HTTPException(status_code=400, detail="Refund failed")
 
     return {"response": "Refund Successful"}
 
@@ -520,10 +483,7 @@ async def payment_list(
     result: Result = await db.execute(stmt)
     payments = result.scalars().all()
     if not payments:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No payments"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No payments")
 
     return {"response": payments}
 
@@ -571,23 +531,26 @@ async def payment_list_for_moderator(
     :param db: Async SQLAlchemy session used to query payment data.
     :return: Dictionary containing a list of payments for the requested user
     """
-    stmt = (
+    stmt_user = (
         select(UserModel)
         .options(joinedload(UserModel.group))
         .where(UserModel.id == current_user.id)
     )
-    result: Result = await db.execute(stmt)
-    user = result.scalars().first()
+    result_user: Result = await db.execute(stmt_user)
+    user = result_user.scalars().first()
 
-    if user.group.name != UserGroupEnum.MODERATOR:
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access forbidden for {user.group.name}: "
             "insufficient permissions.",
         )
 
-    stmt = payment_filter.filter(select(PaymentModel))
-    result: Result = await db.execute(stmt)
-    payments = result.scalars().all()
+    stmt_payment = payment_filter.filter(select(PaymentModel))
+    result_payment: Result = await db.execute(stmt_payment)
+    payments = result_payment.scalars().all()
 
     return {"response": payments}

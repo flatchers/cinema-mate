@@ -23,11 +23,7 @@ class PaymentModel(Base):
     __tablename__ = "payments"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -51,20 +47,12 @@ class PaymentModel(Base):
     external_payment_id: Mapped[Optional[str]] = mapped_column(String)
 
     # Relationships
-    order: Mapped["OrderModel"] = relationship(
-        "OrderModel",
-        back_populates="payments"
-    )
+    order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="payments")
 
-    user: Mapped["UserModel"] = relationship(
-        "UserModel",
-        back_populates="payments"
-    )
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="payments")
 
     payment_items: Mapped[List["PaymentItemModel"]] = relationship(
-        "PaymentItemModel",
-        back_populates="payment",
-        cascade="all, delete-orphan"
+        "PaymentItemModel", back_populates="payment", cascade="all, delete-orphan"
     )
 
 
@@ -72,11 +60,7 @@ class PaymentItemModel(Base):
     __tablename__ = "payment_items"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     payment_id: Mapped[int] = mapped_column(
         ForeignKey("payments.id", ondelete="CASCADE"), nullable=False
@@ -86,10 +70,7 @@ class PaymentItemModel(Base):
         ForeignKey("order_items.id", ondelete="CASCADE"), nullable=False
     )
 
-    price_at_payment: Mapped[DECIMAL] = mapped_column(
-        DECIMAL(10, 2),
-        nullable=False
-    )
+    price_at_payment: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
 
     # Relationships
     payment: Mapped["PaymentModel"] = relationship(

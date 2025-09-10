@@ -39,14 +39,9 @@ router = APIRouter()
             },
         },
         404: {
-            "description": "Cart items not found in "
-                           "the cart for creating order.",
+            "description": "Cart items not found in " "the cart for creating order.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Your cart is empty"
-                    }
-                }
+                "application/json": {"example": {"detail": "Your cart is empty"}}
             },
         },
         409: {
@@ -87,21 +82,20 @@ async def create_order(
     order = None
     stmt = (
         select(CartModel)
-        .options(selectinload(CartModel.cart_items)
-                 .selectinload(CartItemsModel.movie))
+        .options(selectinload(CartModel.cart_items).selectinload(CartItemsModel.movie))
         .where(CartModel.user_id == current_user.id)
     )
     result: Result = await db.execute(stmt)
     cart = result.scalars().first()
 
-    stmt = (
+    stmt_order_item = (
         select(OrderItemModel)
         .join(OrderItemModel.order)
         .options(selectinload(OrderItemModel.movie))
         .where(OrderModel.user_id == current_user.id)
     )
-    result: Result = await db.execute(stmt)
-    order_item_all = result.scalars().all()
+    result_order_item: Result = await db.execute(stmt_order_item)
+    order_item_all = result_order_item.scalars().all()
 
     if not cart or not cart.cart_items:
         raise HTTPException(
@@ -171,11 +165,7 @@ async def create_order(
         404: {
             "description": "List of orders is empty",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "The order is empty"
-                    }
-                }
+                "application/json": {"example": {"detail": "The order is empty"}}
             },
         },
     },
@@ -231,11 +221,7 @@ async def order_list(
         204: {
             "description": "Order is deleted",
             "content": {
-                "application/json": {
-                    "example": {
-                        "response": "order was canceled"
-                    }
-                }
+                "application/json": {"example": {"response": "order was canceled"}}
             },
         },
         404: {
@@ -243,23 +229,14 @@ async def order_list(
             "content": {
                 "application/json": {
                     "example": {
-                        "user_not_found": {
-                            "value": {
-                                "detail": "User not found"
-                            }
-                        },
-                        "order_not_found": {
-                            "value": {
-                                "detail": "Order not found."
-                            }
-                        },
+                        "user_not_found": {"value": {"detail": "User not found"}},
+                        "order_not_found": {"value": {"detail": "Order not found."}},
                     }
                 }
             },
         },
         403: {
-            "description": "User cannot delete order "
-                           "if status are PAID or CANCELED",
+            "description": "User cannot delete order " "if status are PAID or CANCELED",
             "content": {
                 "application/json": {
                     "example": {
@@ -298,11 +275,11 @@ async def order_delete(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    stmt = select(OrderModel).where(
+    stmt_order = select(OrderModel).where(
         OrderModel.id == order_id, OrderModel.user_id == current_user.id
     )
-    result = await db.execute(stmt)
-    order = result.scalars().first()
+    result_order = await db.execute(stmt_order)
+    order = result_order.scalars().first()
 
     if not order:
         raise HTTPException(

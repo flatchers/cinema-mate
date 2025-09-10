@@ -17,9 +17,7 @@ from src.database.models.accounts import (
     RefreshTokenModel,
 )
 from src.database import get_db
-from src.notifications.send_email.send_activation_email import (
-    send_activation_email
-)
+from src.notifications.send_email.send_activation_email import send_activation_email
 from src.notifications.send_email.send_activation_email_complete import (
     send_activation_email_confirm,
 )
@@ -149,8 +147,7 @@ async def user_token_activation(
         select(ActivationTokenModel)
         .join(UserModel)
         .where(
-            ActivationTokenModel.token == schema.token,
-            UserModel.email == schema.email
+            ActivationTokenModel.token == schema.token, UserModel.email == schema.email
         )
     )
     result_token = await session.execute(stmt_token)
@@ -167,18 +164,15 @@ async def user_token_activation(
         )
     if user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="You are already active"
+            status_code=status.HTTP_409_CONFLICT, detail="You are already active"
         )
     if not activ_token:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invalid token entered"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered"
         )
     if schema.token != activ_token.token:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invalid token entered"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token entered"
         )
 
     user.is_active = True
@@ -213,14 +207,12 @@ async def user_password_reset(
 
     if not db_user or not db_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid email or password"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or password"
         )
 
     if not db_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not active"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="User is not active"
         )
     if not db_user:
         raise HTTPException(
@@ -238,10 +230,7 @@ async def user_password_reset(
         await session.commit()
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=e
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
     print(new_token.token)
 
     send_password_reset_email(schema.email, new_token.token)
@@ -256,9 +245,7 @@ async def user_password_reset(
     status_code=status.HTTP_200_OK,
 )
 async def reset_password_confirm(
-    schema: TokenResetPasswordCompleteRequest,
-        session: AsyncSession = Depends(get_db
-                                        )
+    schema: TokenResetPasswordCompleteRequest, session: AsyncSession = Depends(get_db)
 ):
     """
     Password Reset Confirm
@@ -275,8 +262,7 @@ async def reset_password_confirm(
 
     if not db_user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     stmt_reset_token = select(PasswordResetTokenModel).where(
@@ -287,8 +273,7 @@ async def reset_password_confirm(
 
     if not reset_token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if reset_token.token != schema.token:
@@ -309,8 +294,7 @@ async def reset_password_confirm(
         await session.execute(delete_query)
         await session.commit()
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="token time expired"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="token time expired"
         )
 
     try:
@@ -362,19 +346,14 @@ async def user_login(
     result_user = await session.execute(stmt_user)
     db_user = result_user.scalars().first()
 
-    print("Entered:", password)
-    print("Check:", db_user.verify_password_pwd(password))
-
     if not db_user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if not db_user.verify_password_pwd(password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if not db_user.is_active:
@@ -397,11 +376,7 @@ async def user_login(
             detail=f"An error occurred during user creation. -- {e}",
         )
 
-    access = create_access_token(
-        {
-            "sub": str(db_user.id),
-            "role": db_user.group.name}
-    )
+    access = create_access_token({"sub": str(db_user.id), "role": db_user.group.name})
     return {
         "access_token": access,
         "role": db_user.group.name,
@@ -432,17 +407,15 @@ async def logout(
     """
     current_time = datetime.now(timezone.utc)
 
-    stmt = (
-        select(RefreshTokenModel)
-        .where(RefreshTokenModel.user_id == current_user.id)
-    )
+    stmt = select(RefreshTokenModel).where(RefreshTokenModel.user_id == current_user.id)
     refresh_result = await session.execute(stmt)
     refresh = refresh_result.scalars().first()
-    if not authenticate_user:
+
+    if not refresh:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not authenticated"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not authenticated"
         )
+
     if refresh.expires_at.replace(tzinfo=timezone.utc) < current_time:
         await session.delete(refresh)
         await session.commit()
@@ -483,8 +456,8 @@ async def refresh(
             detail=str(error),
         )
 
-    stmt = select(RefreshTokenModel).filter_by(token=token_data.refresh_token)
-    result = await db.execute(stmt)
+    stmt_refresh = select(RefreshTokenModel).filter_by(token=token_data.refresh_token)
+    result = await db.execute(stmt_refresh)
     refresh_token_record = result.scalars().first()
     if not refresh_token_record:
         raise HTTPException(
@@ -555,13 +528,18 @@ async def update_user(
     result_group = await session.execute(stmt_group)
     user_group = result_group.scalars().first()
 
+    if not now_user or not now_user.group:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This function is only for admins",
+        )
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     if now_user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="this function for admins"
+            status_code=status.HTTP_403_FORBIDDEN, detail="this function for admins"
         )
 
     if user.group.name == schema.group:

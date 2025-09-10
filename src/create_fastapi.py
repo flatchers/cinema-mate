@@ -29,7 +29,7 @@ def create_app():
                 extended filters for moderators.
                 - ⚡ Built with FastAPI, SQLAlchemy (async), JWT authentication.
                 """,
-        docs_url=None
+        docs_url=None,
     )
 
     @app.get("/docs", include_in_schema=False)
@@ -40,8 +40,7 @@ def create_app():
             oauth2_redirect_url="/docs/oauth2-redirect",
             swagger_js_url="https://unpkg.com"
             "/swagger-ui-dist@5/swagger-ui-bundle.js",
-            swagger_css_url="https://unpkg.com"
-                            "/swagger-ui-dist@5/swagger-ui.css",
+            swagger_css_url="https://unpkg.com" "/swagger-ui-dist@5/swagger-ui.css",
         )
 
     @app.get("/docs/oauth2-redirect", include_in_schema=False)

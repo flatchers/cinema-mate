@@ -41,21 +41,14 @@ class UserGroup(Base):
     __tablename__ = "user_groups"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[UserGroupEnum] = mapped_column(
         Enum(UserGroupEnum),
         nullable=False,
         unique=True,
     )
 
-    users: Mapped[List["UserModel"]] = relationship(
-        "UserModel",
-        back_populates="group"
-    )
+    users: Mapped[List["UserModel"]] = relationship("UserModel", back_populates="group")
 
 
 if TYPE_CHECKING:
@@ -66,20 +59,12 @@ class UserModel(Base):
     __tablename__ = "users"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     _hashed_password: Mapped[str] = mapped_column(
         "hashed_password", String(255), nullable=False
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp()
     )
@@ -91,18 +76,11 @@ class UserModel(Base):
     like_movies: Mapped[List["Movie"]] = relationship(
         "Movie", secondary="movie_like_users", back_populates="like_users"
     )
-    comments: Mapped[List["Comment"]] = relationship(
-        "Comment",
-        back_populates="user"
-    )
+    comments: Mapped[List["Comment"]] = relationship("Comment", back_populates="user")
     favourite_movies: Mapped[List["Movie"]] = relationship(
-        "Movie",
-        secondary="movie_favourite_users",
-        back_populates="favourite_users"
+        "Movie", secondary="movie_favourite_users", back_populates="favourite_users"
     )
-    notifications_delete: (Mapped)[
-        List["NotificationDeleteModel"]
-    ] = relationship(
+    notifications_delete: (Mapped)[List["NotificationDeleteModel"]] = relationship(
         "NotificationDeleteModel",
         secondary=NotificationModeratorsModel,
         back_populates="users",
@@ -119,10 +97,7 @@ class UserModel(Base):
     group_id: Mapped[int] = mapped_column(
         ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False
     )
-    group: Mapped["UserGroup"] = relationship(
-        "UserGroup",
-        back_populates="users"
-    )
+    group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="users")
     profile: Mapped["UserProfileModel"] = relationship(
         "UserProfileModel", back_populates="user"
     )
@@ -132,9 +107,7 @@ class UserModel(Base):
     activation_token: Mapped[Optional["ActivationTokenModel"]] = relationship(
         "ActivationTokenModel", back_populates="user"
     )
-    password_reset_token: (Mapped)[
-        Optional["PasswordResetTokenModel"]
-    ] = relationship(
+    password_reset_token: (Mapped)[Optional["PasswordResetTokenModel"]] = relationship(
         "PasswordResetTokenModel", back_populates="user"
     )
     refresh_token: Mapped[Optional["RefreshTokenModel"]] = relationship(
@@ -161,11 +134,7 @@ class UserProfileModel(Base):
     __tablename__ = "user_profile"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(100))
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     avatar: Mapped[Optional[str]] = mapped_column(String(255))
@@ -176,21 +145,14 @@ class UserProfileModel(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    user: Mapped[UserModel] = relationship(
-        "UserModel",
-        back_populates="profile"
-    )
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="profile")
 
 
 class ActivationTokenModel(Base):
     __tablename__ = "activation_tokens"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, default=generate_token
     )
@@ -211,16 +173,8 @@ class PasswordResetTokenModel(Base):
     __tablename__ = "password_reset_tokens"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
-    token: Mapped[str] = mapped_column(
-        String(255),
-        unique=True,
-        default=generate_token
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -239,16 +193,8 @@ class RefreshTokenModel(Base):
     __tablename__ = "refresh_tokens"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
-    token: Mapped[str] = mapped_column(
-        String(512),
-        unique=True,
-        default=generate_token
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(512), unique=True, default=generate_token)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -258,7 +204,4 @@ class RefreshTokenModel(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    user: Mapped[UserModel] = relationship(
-        "UserModel",
-        back_populates="refresh_token"
-    )
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_token")

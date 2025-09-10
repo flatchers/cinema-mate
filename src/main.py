@@ -10,28 +10,8 @@ app = create_app()
 
 prefix_path = "/api/v1"
 
-app.include_router(
-    router_accounts,
-    prefix=f"{prefix_path}/accounts",
-    tags=["accounts"]
-)
-app.include_router(
-    router_movies,
-    prefix=f"{prefix_path}/movies",
-    tags=["movies"]
-)
-app.include_router(
-    router_carts,
-    prefix=f"{prefix_path}/shopping-carts",
-    tags=["carts"]
-)
-app.include_router(
-    router_orders,
-    prefix=f"{prefix_path}/orders",
-    tags=["orders"]
-)
-app.include_router(
-    router_payments,
-    prefix=f"{prefix_path}/payments",
-    tags=["payments"]
-)
+app.include_router(router_accounts, prefix=f"{prefix_path}/accounts", tags=["accounts"])
+app.include_router(router_movies, prefix=f"{prefix_path}/movies", tags=["movies"])
+app.include_router(router_carts, prefix=f"{prefix_path}/shopping-carts", tags=["carts"])
+app.include_router(router_orders, prefix=f"{prefix_path}/orders", tags=["orders"])
+app.include_router(router_payments, prefix=f"{prefix_path}/payments", tags=["payments"])

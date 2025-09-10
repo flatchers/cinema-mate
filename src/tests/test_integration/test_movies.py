@@ -162,10 +162,7 @@ async def test_film_create_invalid_scenarios(db_session, client):
 
 @pytest.mark.asyncio
 async def test_film_create_invalid_roles(client, db_session):
-    payload_register = {
-        "email": "sample@user.com",
-        "password": "StrongPassword123!"
-    }
+    payload_register = {"email": "sample@user.com", "password": "StrongPassword123!"}
     db_session.add(UserGroup(name=UserGroupEnum.USER))
     await db_session.flush()
 
@@ -216,9 +213,7 @@ async def test_film_create_invalid_roles(client, db_session):
     )
     assert response.status_code == 403, "Expected FOBIDDEN error"
     response_data = response.json()
-    assert response_data["detail"] == (
-            "Access forbidden: insufficient permissions."
-    )
+    assert response_data["detail"] == ("Access forbidden: insufficient permissions.")
 
 
 @pytest.mark.asyncio
@@ -343,9 +338,7 @@ async def test_movie_delete(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     response_data_create = response.json()
     assert response.status_code == 201
@@ -365,9 +358,7 @@ async def test_movie_delete(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     stmt = select(Movie).where(Movie.id == response_data_create["id"])
     result: Result = await db_session.execute(stmt)
@@ -436,9 +427,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     response_data_create = response.json()
     assert response.status_code == 201
@@ -458,9 +447,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     stmt = select(Movie).where(Movie.id == response_data_create["id"])
     result: Result = await db_session.execute(stmt)
@@ -478,9 +465,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     assert response.status_code == 404
     response_data = response.json()
@@ -541,9 +526,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_create = response.json()
@@ -595,10 +578,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     assert order_items
     assert order.status == StatusEnum.PAID
 
-    stmt = (
-        select(OrderItemModel)
-        .join(OrderModel).where(OrderModel.user_id == user.id)
-    )
+    stmt = select(OrderItemModel).join(OrderModel).where(OrderModel.user_id == user.id)
     result: Result = await db_session.execute(stmt)
     order_item = result.scalars().first()
 
@@ -619,13 +599,9 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_token["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
-    assert response.status_code == 409, (
-        "Expected message: current film is bought"
-    )
+    assert response.status_code == 409, "Expected message: current film is bought"
 
     stmt = select(Movie).where(Movie.id == response_data_create["id"])
     result: Result = await db_session.execute(stmt)
@@ -760,15 +736,11 @@ async def test_movie_search_success(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
-    response = await client.post(
-        "/api/v1/movies/search/", params={"search": "aaa"}
-    )
+    response = await client.post("/api/v1/movies/search/", params={"search": "aaa"})
     assert response.status_code == 200
     response_data = response.json()
     assert response_data[0]["name"] == "aaa"
@@ -792,24 +764,16 @@ async def test_movie_search_success(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_new,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
-    response = await client.post(
-        "/api/v1/movies/search/",
-        params={"search": "tt"}
-    )
+    response = await client.post("/api/v1/movies/search/", params={"search": "tt"})
     assert response.status_code == 200
     response_data = response.json()
     assert len(response_data) == 1
 
-    response = await client.post(
-        "/api/v1/movies/search/",
-        params={"search": "a"}
-    )
+    response = await client.post("/api/v1/movies/search/", params={"search": "a"})
     assert response.status_code == 200
     response_data_two = response.json()
     assert len(response_data_two) == 2
@@ -847,10 +811,7 @@ async def test_movie_search_empty_list(client, db_session):
     response = await client.post("/api/v1/accounts/login/", data=payload)
     assert response.status_code == 200
 
-    response = await client.post(
-        "/api/v1/movies/search/",
-        params={"search": "tt"}
-    )
+    response = await client.post("/api/v1/movies/search/", params={"search": "tt"})
     assert response.status_code == 200
     response_data = response.json()
     assert not response_data
@@ -974,27 +935,21 @@ async def test_add_and_remove_like(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/like/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_like = response.json()
     assert response_data_like["like_count"] == 1
     response = await client.post(
         f"/api/v1/movies/like/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     response_data_like = response.json()
     assert response_data_like["like_count"] == 0
@@ -1051,26 +1006,19 @@ async def test_write_comments(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
-    stmt = (
-        select(UserModel)
-        .where(UserModel.email == payload_register["email"])
-    )
+    stmt = select(UserModel).where(UserModel.email == payload_register["email"])
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
 
     response = await client.post(
         f"/api/v1/movies/{response_data["id"]}/comments/",
         json={"comments": "this film not bad"},
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1131,18 +1079,14 @@ async def test_add_and_remove_favourite(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1151,9 +1095,7 @@ async def test_add_and_remove_favourite(client, db_session):
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 200
     response_data_rem = response.json()
@@ -1194,9 +1136,7 @@ async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
     assert response.status_code == 200
     response = await client.post(
         f"/api/v1/movies/favourite/{999}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 404
@@ -1253,18 +1193,14 @@ async def test_favourite_list(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1273,9 +1209,7 @@ async def test_favourite_list(client, db_session):
 
     response = await client.get(
         "/api/v1/movies/favourite/list/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 200
@@ -1284,9 +1218,7 @@ async def test_favourite_list(client, db_session):
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 200
 
@@ -1295,9 +1227,7 @@ async def test_favourite_list(client, db_session):
 
     response = await client.get(
         "/api/v1/movies/favourite/list/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 200
@@ -1356,18 +1286,14 @@ async def test_favourite_search(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1376,9 +1302,7 @@ async def test_favourite_search(client, db_session):
 
     response = await client.get(
         "/api/v1/movies/favourite/search/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
         params={"search": "a"},
     )
     assert response.status_code == 200
@@ -1467,27 +1391,21 @@ async def test_movies_of_genre(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie2,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie3,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1566,9 +1484,7 @@ async def test_rate(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
@@ -1577,9 +1493,7 @@ async def test_rate(client, db_session):
     response = await client.post(
         f"/api/v1/movies/score/{response_data_movie["id"]}/",
         json=payload,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
@@ -1589,9 +1503,7 @@ async def test_rate(client, db_session):
     response = await client.post(
         f"/api/v1/movies/score/{response_data_movie["id"]}/",
         json=payload,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()

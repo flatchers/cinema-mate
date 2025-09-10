@@ -23,7 +23,7 @@ REFRESH_TOKEN_EXPIRE_MINUTES = 30 * 24 * 7
 
 fake_users_db = {
     "_hashed_password": "$2b$12$iEcfZbwkgq.k4YjNtcUrE."
-                        "dqe.iNT9DFLzfI86JawWAUji3R7B/fG",
+    "dqe.iNT9DFLzfI86JawWAUji3R7B/fG",
     "is_active": True,
     "updated_at": "2025-04-14T10:05:48",
     "id": 1,
@@ -75,8 +75,7 @@ async def get_user_by_id(user_id, db: AsyncSession):
 
 
 async def get_current_user(
-        token: Annotated[str, Depends(oauth2_scheme)],
-        db: AsyncSession = Depends(get_db)
+    token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db)
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

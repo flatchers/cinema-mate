@@ -30,36 +30,16 @@ MovieGenreModel = Table(
 MovieStarModel = Table(
     "movie_stars",
     Base.metadata,
-    Column(
-        "star_id",
-        ForeignKey("stars.id"),
-        primary_key=True,
-        nullable=False
-    ),
-    Column(
-        "movie_id",
-        ForeignKey("movies.id"),
-        primary_key=True,
-        nullable=False
-    ),
+    Column("star_id", ForeignKey("stars.id"), primary_key=True, nullable=False),
+    Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
     extend_existing=True,
 )
 
 MovieDirectorModel = Table(
     "movie_directors",
     Base.metadata,
-    Column(
-        "director_id",
-        ForeignKey("directors.id"),
-        primary_key=True,
-        nullable=False
-    ),
-    Column(
-        "movie_id",
-        ForeignKey("movies.id"),
-        primary_key=True,
-        nullable=False
-    ),
+    Column("director_id", ForeignKey("directors.id"), primary_key=True, nullable=False),
+    Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
     extend_existing=True,
 )
 
@@ -67,30 +47,15 @@ MovieLikeUserModel = Table(
     "movie_like_users",
     Base.metadata,
     Column("user_id", ForeignKey("users.id"), primary_key=True),
-    Column(
-        "movie_id",
-        ForeignKey("movies.id"),
-        primary_key=True,
-        nullable=False
-    ),
+    Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
     extend_existing=True,
 )
 
 MovieFavouriteUserModel = Table(
     "movie_favourite_users",
     Base.metadata,
-    Column(
-        "user_id",
-        ForeignKey("users.id"),
-        primary_key=True,
-        nullable=False
-    ),
-    Column(
-        "movie_id",
-        ForeignKey("movies.id"),
-        primary_key=True,
-        nullable=False
-    ),
+    Column("user_id", ForeignKey("users.id"), primary_key=True, nullable=False),
+    Column("movie_id", ForeignKey("movies.id"), primary_key=True, nullable=False),
     extend_existing=True,
 )
 
@@ -99,11 +64,7 @@ class Genre(Base):
     __tablename__ = "genres"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     movies: Mapped[List["Movie"]] = relationship(
         "Movie",
@@ -116,11 +77,7 @@ class Star(Base):
     __tablename__ = "stars"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     movies: Mapped[List["Movie"]] = relationship(
         "Movie", secondary=MovieStarModel, back_populates="stars"
@@ -131,11 +88,7 @@ class Director(Base):
     __tablename__ = "directors"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     movies: Mapped[List["Movie"]] = relationship(
         "Movie", secondary=MovieDirectorModel, back_populates="directors"
@@ -146,11 +99,7 @@ class Certification(Base):
     __tablename__ = "certifications"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
     movies: Mapped[list["Movie"]] = relationship(
@@ -162,17 +111,10 @@ class Comment(Base):
     __tablename__ = "comment"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     comment: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    user: Mapped["UserModel"] = relationship(
-        "UserModel",
-        back_populates="comments"
-    )
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="comments")
     movie_id = mapped_column(ForeignKey("movies.id"))
     movie: Mapped["Movie"] = relationship("Movie", back_populates="comments")
     notifications: Mapped[list["Notification"]] = relationship(
@@ -183,25 +125,15 @@ class Comment(Base):
 class Rate(Base):
     __tablename__ = "rate"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rate: Mapped[int] = mapped_column(Float, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    user: Mapped["UserModel"] = relationship(
-        "UserModel",
-        back_populates="rates"
-    )
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="rates")
     movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"))
     movie: Mapped["Movie"] = relationship("Movie", back_populates="rates")
 
     __table_args__ = (
-        CheckConstraint(
-            "rate >= 1.0 AND rate <= 10.0",
-            name="rate_between_1_and_10"
-        ),
+        CheckConstraint("rate >= 1.0 AND rate <= 10.0", name="rate_between_1_and_10"),
         {"extend_existing": True},
     )
 
@@ -214,11 +146,7 @@ if TYPE_CHECKING:
 class Movie(Base):
     __tablename__ = "movies"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     uuid: Mapped[str] = mapped_column(
         String(36), unique=True, default=lambda: str(uuid.uuid4())
     )
@@ -276,11 +204,7 @@ class Notification(Base):
     __tablename__ = "notification"
     __table_args__ = {"extend_existing": True}
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -294,7 +218,4 @@ class Notification(Base):
     user: Mapped["UserModel"] = relationship(
         "UserModel", back_populates="notifications"
     )
-    comment: Mapped["Comment"] = relationship(
-        "Comment",
-        back_populates="notifications"
-    )
+    comment: Mapped["Comment"] = relationship("Comment", back_populates="notifications")

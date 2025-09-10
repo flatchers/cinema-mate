@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     WEBHOOK_ENDPOINT_SECRET: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=".test.env" if os.getenv("MODE") == "TEST"
-        else ".env", extra="ignore"
+        env_file=".test.env" if os.getenv("MODE") == "TEST" else ".env", extra="ignore"
     )
 
 

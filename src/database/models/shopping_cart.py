@@ -33,11 +33,7 @@ NotificationModeratorsModel = Table(
 class CartModel(Base):
     __tablename__ = "carts"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
     )
@@ -52,18 +48,11 @@ class CartModel(Base):
 class CartItemsModel(Base):
     __tablename__ = "cart_items"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cart_id: Mapped[int] = mapped_column(
         ForeignKey("carts.id", ondelete="CASCADE"), nullable=False
     )
-    cart: Mapped["CartModel"] = relationship(
-        "CartModel",
-        back_populates="cart_items"
-    )
+    cart: Mapped["CartModel"] = relationship("CartModel", back_populates="cart_items")
     movie_id: Mapped[int] = mapped_column(
         ForeignKey("movies.id", ondelete="CASCADE"), nullable=False
     )
@@ -71,11 +60,8 @@ class CartItemsModel(Base):
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    notifications_delete: Mapped[List["NotificationDeleteModel"]] = (
-        relationship(
-            "NotificationDeleteModel",
-            back_populates="cart_items"
-        )
+    notifications_delete: Mapped[List["NotificationDeleteModel"]] = relationship(
+        "NotificationDeleteModel", back_populates="cart_items"
     )
 
     __table_args__ = (UniqueConstraint("cart_id", "movie_id"),)
@@ -84,11 +70,7 @@ class CartItemsModel(Base):
 class NotificationDeleteModel(Base):
     __tablename__ = "notifications_delete"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cart_items_id: Mapped[int] = mapped_column(
         ForeignKey("cart_items.id", ondelete="CASCADE"), nullable=True
     )

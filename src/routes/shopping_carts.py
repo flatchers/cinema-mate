@@ -22,11 +22,7 @@ router = APIRouter()
         201: {
             "description": "Movie successfully added to the user's cart.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "message": "Movie added to cart"
-                    }
-                }
+                "application/json": {"example": {"message": "Movie added to cart"}}
             },
         },
         404: {
@@ -34,29 +30,16 @@ router = APIRouter()
             "content": {
                 "application/json": {
                     "example": {
-                        "user_not_found": {
-                            "value": {
-                                "detail": "User not found"
-                            }
-                        },
-                        "movie_not_found": {
-                            "value": {
-                                "detail": "Movie not found"
-                            }
-                        },
+                        "user_not_found": {"value": {"detail": "User not found"}},
+                        "movie_not_found": {"value": {"detail": "Movie not found"}},
                     }
                 }
             },
         },
         409: {
-            "description": "Trying add to the "
-                           "database already existing cart item",
+            "description": "Trying add to the " "database already existing cart item",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Movie already in cart"
-                    }
-                }
+                "application/json": {"example": {"detail": "Movie already in cart"}}
             },
         },
     },
@@ -107,15 +90,14 @@ async def add_cart_item(
             status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found"
         )
 
-    stmt = select(CartItemsModel).where(
+    stmt_existing_cart_items = select(CartItemsModel).where(
         CartItemsModel.cart_id == cart.id, CartItemsModel.movie_id == movie_id
     )
-    existing = await session.execute(stmt)
+    existing = await session.execute(stmt_existing_cart_items)
 
     if existing.scalars().first():
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Movie already in cart"
+            status_code=status.HTTP_409_CONFLICT, detail="Movie already in cart"
         )
 
     cart_item = CartItemsModel(cart_id=cart.id, movie_id=movie_id)
@@ -138,9 +120,7 @@ async def add_cart_item(
             "description": "Successful deleted from the database",
             "content": {
                 "application/json": {
-                    "example": {
-                        "message": "Movie deleted from cart successfully"
-                    }
+                    "example": {"message": "Movie deleted from cart successfully"}
                 }
             },
         },
@@ -149,16 +129,8 @@ async def add_cart_item(
             "content": {
                 "application/json": {
                     "example": {
-                        "user_not_found": {
-                            "value": {
-                                "detail": "User not found"
-                            }
-                        },
-                        "movie_not_found": {
-                            "value": {
-                                "detail": "Movie not found"
-                            }
-                        },
+                        "user_not_found": {"value": {"detail": "User not found"}},
+                        "movie_not_found": {"value": {"detail": "Movie not found"}},
                     }
                 }
             },
@@ -192,25 +164,22 @@ async def remove_cart_item(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    stmt = (
-        select(CartItemsModel)
-        .where(CartItemsModel.movie_id == cart_item_id)
-    )
-    result: Result = await session.execute(stmt)
-    cart_item = result.scalars().first()
+    stmt_cart_item = select(CartItemsModel).where(CartItemsModel.movie_id == cart_item_id)
+    result_cart_item: Result = await session.execute(stmt_cart_item)
+    cart_item = result_cart_item.scalars().first()
 
     if not cart_item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found"
         )
 
-    stmt = (
+    stmt_moder_users = (
         select(UserModel)
         .join(UserModel.group)
         .where(user.group == UserGroupEnum.MODERATOR)
     )
-    result: Result = await session.execute(stmt)
-    moderator_user = result.scalars().all()
+    result_moder_users: Result = await session.execute(stmt_moder_users)
+    moderator_user = result_moder_users.scalars().all()
 
     cart_item_id = cart_item.id
 
@@ -218,8 +187,7 @@ async def remove_cart_item(
 
     notif = NotificationDeleteModel(
         cart_items_id=cart_item_id,
-        comment=f"user {user.email} with "
-                f"id {user.id} deleted item {cart_item}",
+        comment=f"user {user.email} with " f"id {user.id} deleted item {cart_item}",
     )
     notif.users.extend(moderator_user)
     session.add(notif)
@@ -243,16 +211,8 @@ async def remove_cart_item(
             "content": {
                 "application/json": {
                     "example": {
-                        "user_not_found": {
-                            "value": {
-                                "detail": "User not found"
-                            }
-                        },
-                        "movie_not_found": {
-                            "value": {
-                                "detail": "Movie not found"
-                            }
-                        },
+                        "user_not_found": {"value": {"detail": "User not found"}},
+                        "movie_not_found": {"value": {"detail": "Movie not found"}},
                     }
                 }
             },
@@ -283,7 +243,7 @@ async def cart_list(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    stmt = (
+    stmt_carts = (
         select(CartModel)
         .options(
             selectinload(CartModel.cart_items)
@@ -292,8 +252,8 @@ async def cart_list(
         )
         .where(CartModel.user_id == user.id)
     )
-    result: Result = await session.execute(stmt)
-    carts = result.scalars().first()
+    result_carts: Result = await session.execute(stmt_carts)
+    carts = result_carts.scalars().first()
 
     if not carts:
         raise HTTPException(
@@ -324,22 +284,12 @@ async def cart_list(
         200: {"description": "Returns dict with information."},
         404: {
             "description": "The user does not exist in database",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "User not found"
-                    }
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "User not found"}}},
         },
         403: {
             "description": "The function is available only for admins.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "This function for admins"
-                    }
-                }
+                "application/json": {"example": {"detail": "This function for admins"}}
             },
         },
     },
@@ -377,16 +327,11 @@ async def items_detail(
 
     if user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This function for admins"
+            status_code=status.HTTP_403_FORBIDDEN, detail="This function for admins"
         )
 
-    stmt = (
-        select(CartItemsModel)
-        .join(CartModel)
-        .where(CartModel.user_id == user_id)
-    )
-    result: Result = await session.execute(stmt)
-    purpose_user = result.scalars().all()
+    stmt_user = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user_id)
+    result_user: Result = await session.execute(stmt_user)
+    purpose_user = result_user.scalars().all()
 
     return {"detail": purpose_user}

@@ -55,25 +55,18 @@ async def test_add_cart_item(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
-    assert (
-            response_data_movie["id"]
-            == response_data["create cart item"]["movie_id"]
-    )
+    assert response_data_movie["id"] == response_data["create cart item"]["movie_id"]
 
 
 @pytest.mark.asyncio
@@ -127,36 +120,26 @@ async def test_add_cart_item_invalid_scenarios(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201, "Expected message successful creation"
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
-    assert response.status_code == 409, (
-        "Expected message: Movie already in cart"
-    )
+    assert response.status_code == 409, "Expected message: Movie already in cart"
 
     response = await client.post(
         f"/api/v1/shopping-carts/{9999}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 404, "Expected message: Movie not found"
 
@@ -212,18 +195,14 @@ async def test_remove_cart_item_success_scenario(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201, "Expected message successful creation"
     response_data_cart = response.json()
@@ -231,9 +210,7 @@ async def test_remove_cart_item_success_scenario(client, db_session):
     response = await client.delete(
         f"/api/v1/shopping-carts/"
         f"{response_data_cart["create cart item"]["id"]}/delete/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 204
@@ -290,26 +267,20 @@ async def test_remove_cart_item_invalid_scenario(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201, "Expected message successful creation"
 
     response = await client.delete(
         f"/api/v1/shopping-carts/{9999}/delete/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 404
     response_data_404 = response.json()
@@ -369,18 +340,14 @@ async def test_cart_list_success_scenario(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -402,26 +369,20 @@ async def test_cart_list_success_scenario(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie2,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie2 = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie2["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.get(
         "/api/v1/shopping-carts/list/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 200
     response_data_list = response.json()
@@ -463,9 +424,7 @@ async def test_cart_list_invalid_scenario(client, db_session):
 
     response = await client.get(
         "/api/v1/shopping-carts/list/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 404
     response_data_list = response.json()
@@ -525,25 +484,18 @@ async def test_items_detail_success_scenario(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
-    payload_admin = {
-        "email": "testadmin@example.com",
-        "password": "StrongPassword123!"
-    }
+    payload_admin = {"email": "testadmin@example.com", "password": "StrongPassword123!"}
 
     stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.ADMIN)
     result: Result = await db_session.execute(stmt)
@@ -562,10 +514,7 @@ async def test_items_detail_success_scenario(client, db_session):
         "username": payload_admin["email"],
         "password": payload_admin["password"],
     }
-    response = await client.post(
-        "/api/v1/accounts/login/",
-        data=payload_admin_log
-    )
+    response = await client.post("/api/v1/accounts/login/", data=payload_admin_log)
     response_data_login = response.json()
     print("RESPONSE LOGIN", response_data_login)
     assert response.status_code == 200
@@ -577,16 +526,11 @@ async def test_items_detail_success_scenario(client, db_session):
 
     response = await client.get(
         f"/api/v1/shopping-carts/{1}/detail/",
-        headers={
-            "Authorization": f"Bearer {response_data_login["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_login["access_token"]}"},
     )
     assert response.status_code == 200
     response_data_list = response.json()
-    assert (
-            response_data_list["detail"][0]["movie_id"]
-            == response_data_movie["id"]
-    )
+    assert response_data_list["detail"][0]["movie_id"] == response_data_movie["id"]
 
 
 @pytest.mark.asyncio
@@ -640,26 +584,20 @@ async def test_items_detail_invalid_scenario(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
     response = await client.post(
         f"/api/v1/shopping-carts/{response_data_movie["id"]}/add/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.get(
         f"/api/v1/shopping-carts/{1}/detail/",
-        headers={
-            "Authorization": f"Bearer {response_data_log["access_token"]}"
-        },
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 403
     response_data = response.json()

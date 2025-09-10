@@ -32,7 +32,7 @@ from src.schemas.movies import (
     CommentSchema,
     MoviesForGenreResponse,
     ScoreRequestSchema,
-    MovieUpdate,
+    MovieUpdate, MovieList, GenreResponse,
 )
 from src.security.token_manipulation import get_current_user
 
@@ -53,7 +53,7 @@ async def film_create(
     schema: MovieCreateSchema,
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
-):
+) -> MovieCreateResponse:
     """
     Creation movie
 
@@ -67,7 +67,10 @@ async def film_create(
     result_user = await db.execute(stmt_user)
     user = result_user.scalars().first()
 
-    if user.group.name != UserGroupEnum.MODERATOR:
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access forbidden: insufficient permissions.",
@@ -84,38 +87,41 @@ async def film_create(
             db.add(certification)
             await db.flush()
 
-        genres_list = []
-        for genre_name in schema.genres:
-            genres_stmt = select(Genre).where(Genre.name == genre_name)
-            result: Result = await db.execute(genres_stmt)
-            genre = result.scalars().first()
-            if not genre:
-                genre = Genre(name=genre_name)
-                db.add(genre)
-                await db.flush()
-            genres_list.append(genre)
+        genres_list: List[Genre] = []
+        if schema.genres:
+            for genre_name in schema.genres:
+                genres_stmt = select(Genre).where(Genre.name == genre_name)
+                result_genre: Result = await db.execute(genres_stmt)
+                genre = result_genre.scalars().first()
+                if not genre:
+                    genre = Genre(name=genre_name)
+                    db.add(genre)
+                    await db.flush()
+                genres_list.append(genre)
 
-        directors_list = []
-        for director_name in schema.directors:
-            dir_stmt = select(Director).where(Director.name == director_name)
-            result: Result = await db.execute(dir_stmt)
-            director = result.scalars().first()
-            if not director:
-                director = Director(name=director_name)
-                db.add(director)
-                await db.flush()
-            directors_list.append(director)
+        directors_list: List[Director] = []
+        if schema.directors:
+            for director_name in schema.directors:
+                dir_stmt = select(Director).where(Director.name == director_name)
+                result_director: Result = await db.execute(dir_stmt)
+                director = result_director.scalars().first()
+                if not director:
+                    director = Director(name=director_name)
+                    db.add(director)
+                    await db.flush()
+                directors_list.append(director)
 
-        stars_list = []
-        for star_name in schema.stars:
-            star_stmt = select(Star).where(Star.name == star_name)
-            result: Result = await db.execute(star_stmt)
-            star = result.scalars().first()
-            if not star:
-                star = Star(name=star_name)
-                db.add(star)
-                await db.flush()
-            stars_list.append(star)
+        stars_list: List[Star] = []
+        if schema.stars:
+            for star_name in schema.stars:
+                star_stmt = select(Star).where(Star.name == star_name)
+                result_star: Result = await db.execute(star_stmt)
+                star = result_star.scalars().first()
+                if not star:
+                    star = Star(name=star_name)
+                    db.add(star)
+                    await db.flush()
+                stars_list.append(star)
 
         new_movie = Movie(
             name=schema.name,
@@ -140,13 +146,7 @@ async def film_create(
             id=new_movie.id,
             name=new_movie.name,
             year=new_movie.year,
-            time=new_movie.time,
-            imdb=new_movie.imdb,
-            votes=new_movie.votes,
-            meta_score=new_movie.meta_score,
-            gross=new_movie.gross,
             description=new_movie.description,
-            price=new_movie.price,
             certification=new_movie.certification.name,
             genres=[g.name for g in new_movie.genres],
             directors=[d.name for d in new_movie.directors],
@@ -173,7 +173,7 @@ async def movie_update(
     schema: MovieUpdate,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict:
     """
     Update an existing movie by ID.
 
@@ -192,11 +192,17 @@ async def movie_update(
     result: Result = await db.execute(stmt_movie)
     movie = result.scalars().first()
 
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
     result_user: Result = await db.execute(stmt_user)
     user = result_user.scalars().first()
 
-    if user.group.name != UserGroupEnum.MODERATOR:
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access forbidden: insufficient permissions.",
@@ -242,19 +248,23 @@ async def movie_delete(
     """
     stmt_movie = select(Movie).where(Movie.id == movie_id)
     result: Result = await db.execute(stmt_movie)
-    movie = result.scalars().first()
+    movie = result.scalars().first() or 0
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
 
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
-    result: Result = await db.execute(stmt_user)
-    user = result.scalars().first()
+    result_user: Result = await db.execute(stmt_user)
+    user = result_user.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    if user.group.name != UserGroupEnum.MODERATOR:
+    if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access forbidden for {user.group.name}: "
-            f"insufficient permissions.",
+            detail=f"Access forbidden for {user.group.name if user.group else 'unknown'}: "
+                   f"insufficient permissions.",
         )
-
     stmt = (
         select(PaymentModel)
         .join(PaymentModel.order)
@@ -270,12 +280,11 @@ async def movie_delete(
             PaymentModel.status == PaymentStatus.SUCCESSFUL,
         )
     )
-    result: Result = await db.execute(stmt)
-    payment = result.scalars().first()
+    result_payment: Result = await db.execute(stmt)
+    payment = result_payment.scalars().first()
     if payment:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="current film is bought"
+            status_code=status.HTTP_409_CONFLICT, detail="current film is bought"
         )
 
     if not movie:
@@ -339,14 +348,13 @@ async def movie_list(
     if not paginated_items:
         raise HTTPException(status_code=404, detail="No movies found.")
     stmt_total = select(func.count(Movie.id))
-    result: Result = await db.execute(stmt_total)
-    total_items = result.scalars().first()
+    result_total: Result = await db.execute(stmt_total)
+    total_items = result_total.scalars().first() or 0
     total_pages = (total_items + per_page - 1) // per_page
 
     return MoviesPaginationResponse(
         movies=[item for item in paginated_items],
-        prev_page=f"/movies/?page={page - 1}&per_page={per_page}"
-        if page > 1 else None,
+        prev_page=f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None,
         next_page=(
             f"/movies/?page={page + 1}&per_page={per_page}"
             if page < total_pages
@@ -396,10 +404,7 @@ async def movie_search(
     if search:
         list_search = []
         for item in movies:
-            if (
-                    search.lower() in item.name.lower()
-                    and item.id not in seen_movie_ids
-            ):
+            if search.lower() in item.name.lower() and item.id not in seen_movie_ids:
                 list_search.append(item)
                 seen_movie_ids.add(item.id)
 
@@ -493,9 +498,15 @@ async def add_and_remove_like(
     result: Result = await db.execute(stmt)
     movie = result.scalars().first()
 
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+
     user_stmt = select(UserModel).where(UserModel.id == current_user.id)
-    result: Result = await db.execute(user_stmt)
-    user = result.scalars().first()
+    result_user: Result = await db.execute(user_stmt)
+    user = result_user.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     if user in movie.like_users:
         movie.like_count -= 1
@@ -546,11 +557,10 @@ async def write_comments(
     result_movie: Result = await db.execute(stmt_movie)
     movie = result_movie.scalars().first()
 
-    db_comment = Comment(
-        comment=schema.comments,
-        user_id=user.id,
-        movie_id=movie.id
-    )
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+
+    db_comment = Comment(comment=schema.comments, user_id=user.id, movie_id=movie.id)
     db.add(db_comment)
     await db.commit()
     await db.refresh(db_comment)
@@ -591,13 +601,12 @@ async def add_and_remove_favourite(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User is unauthorized"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User is unauthorized"
         )
 
     stmt_movie = select(Movie).where(Movie.id == movie_id)
-    result: Result = await db.execute(stmt_movie)
-    movie = result.scalars().first()
+    result_movie: Result = await db.execute(stmt_movie)
+    movie = result_movie.scalars().first()
 
     if not movie:
         raise HTTPException(
@@ -615,10 +624,7 @@ async def add_and_remove_favourite(
     db.add(user)
     await db.commit()
 
-    return JSONResponse(
-        content={"message": message},
-        status_code=response_status
-    )
+    return JSONResponse(content={"message": message}, status_code=response_status)
 
 
 @router.get(
@@ -651,8 +657,7 @@ async def favourite_list(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User is unauthorized"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User is unauthorized"
         )
 
     return user.favourite_movies
@@ -695,8 +700,7 @@ async def favourite_search(
     stmt = (
         select(UserModel)
         .options(
-            selectinload(UserModel.favourite_movies)
-            .selectinload(Movie.directors),
+            selectinload(UserModel.favourite_movies).selectinload(Movie.directors),
             selectinload(UserModel.favourite_movies).selectinload(Movie.stars),
         )
         .where(UserModel.id == current_user.id)
@@ -706,8 +710,7 @@ async def favourite_search(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User is unauthorized"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User is unauthorized"
         )
     search_list = user.favourite_movies
     if search:
@@ -736,7 +739,7 @@ async def favourite_search(
             filtered_list.append(movie)
 
     else:
-        filtered_list = unique_movies
+        filtered_list = list(unique_movies)
 
     if sort:
         filtered_list = sorted(
@@ -757,7 +760,7 @@ async def favourite_search(
 )
 async def movies_of_genre(
     genre_id: Optional[int] = None, db: AsyncSession = Depends(get_db)
-):
+) -> MoviesForGenreResponse:
     """
     Get all movies for a specific genre.
 
@@ -780,20 +783,38 @@ async def movies_of_genre(
     if not movies:
         raise HTTPException(status_code=404, detail="Movies not found")
 
-    stmt_movies = (
+    movies_list: List[MovieList] = [
+        MovieList(
+            id=m.id,
+            name=m.name,
+            year=m.year,
+            time=m.time,
+            imdb=m.imdb,
+            price=m.price
+        )
+        for m in movies
+    ]
+
+    stmt_count = (
         select(func.count(Movie.id))
         .select_from(Movie)
         .join(Movie.genres)
         .where(Genre.id == genre_id)
     )
-    result: Result = await db.execute(stmt_movies)
-    count_movies = result.scalars().first()
+    result_count: Result = await db.execute(stmt_count)
+    count_movies = result_count.scalars().first() or 0
 
     stmt_genres = select(Genre)
     result_genres: Result = await db.execute(stmt_genres)
     genres = result_genres.scalars().all()
+
+    genre_list: List[GenreResponse] = [GenreResponse(
+        name=g.name
+        )
+        for g in genres
+    ]
     return MoviesForGenreResponse(
-        count_movies=count_movies, genres=genres, movies=movies
+        count_movies=count_movies, genres=genre_list, movies=movies_list
     )
 
 
@@ -830,15 +851,14 @@ async def rate(
     rate = result.scalars().first()
 
     stmt_movie = select(Movie).where(Movie.id == movie_id)
-    result: Result = await db.execute(stmt_movie)
-    movie = result.scalars().first()
+    result_movie: Result = await db.execute(stmt_movie)
+    movie = result_movie.scalars().first()
+
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
 
     if not rate:
-        new_rate = Rate(
-            rate=schema.score,
-            user_id=current_user.id,
-            movie_id=movie_id
-        )
+        new_rate = Rate(rate=schema.score, user_id=current_user.id, movie_id=movie_id)
         movie.votes += 1
         db.add(new_rate)
         await db.commit()
@@ -881,11 +901,19 @@ async def notification_comment(
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
     result: Result = await db.execute(stmt_user)
     user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
     comment = await db.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
     db_comment = Comment(comment=schema.comments, user_id=user.id)
     db.add(db_comment)
     await db.flush()
+
+    if comment.user_id is None:
+        raise HTTPException(status_code=400, detail="Comment has no owner")
+
     new_notif = Notification(
         user_id=comment.user_id,
         comment_id=comment.id,
