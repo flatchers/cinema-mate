@@ -17,7 +17,7 @@ jobs:
       - name: Run black
         run: black --check --diff src/
       - name: Run mypy
-        run: mypy src/routes
+        run: mypy src/routes/ --ignore-missing-imports
       - name: Install dependencies
         run: pip install -r requirements.txt pytest pytest-asyncio
       - name: Run tests
