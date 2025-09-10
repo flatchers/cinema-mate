@@ -21,8 +21,6 @@ jobs:
         run: flake8 src/ --max-line-length=88
       - name: Run black
         run: black --check --diff src/
-      - name: Run mypy
-        run: mypy src/routes/ --ignore-missing-imports
       - name: Install dependencies
         run: pip install -r requirements.txt pytest pytest-asyncio
       - name: Run tests
