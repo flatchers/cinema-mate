@@ -35,6 +35,7 @@ from src.schemas.movies import (
     MovieUpdate,
     MovieList,
     GenreResponse,
+    MovieUpdateResponseSchema,
 )
 from src.security.token_manipulation import get_current_user
 
@@ -227,7 +228,7 @@ async def movie_update(
         setattr(movie, field, value)
     await db.commit()
     await db.refresh(movie)
-    return {"new movie": movie}
+    return {"new movie": MovieUpdateResponseSchema.model_validate(movie)}
 
 
 @router.delete(

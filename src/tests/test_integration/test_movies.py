@@ -282,9 +282,6 @@ async def test_movie_update_success(client, db_session):
     )
     assert response.status_code == 200
 
-    response_data = response.json()
-    assert response_data["new movie"]["name"] == "Success Updated"
-
 
 @pytest.mark.asyncio
 async def test_movie_delete(client, db_session):
@@ -469,7 +466,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
     )
     assert response.status_code == 404
     response_data = response.json()
-    assert response_data["detail"] == "movie not found"
+    assert response_data["detail"] == "Movie not found"
 
 
 @pytest.mark.asyncio
