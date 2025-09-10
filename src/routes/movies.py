@@ -270,7 +270,8 @@ async def movie_delete(
     if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access forbidden for {user.group.name if user.group else 'unknown'}: "
+            detail=f"Access forbidden for "
+            f"{user.group.name if user.group else 'unknown'}: "
             f"insufficient permissions.",
         )
     stmt = (

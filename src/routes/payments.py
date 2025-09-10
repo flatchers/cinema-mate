@@ -321,9 +321,7 @@ async def my_webhook_view(request: Request, db: AsyncSession = Depends(get_db)):
             payment.status = PaymentStatus.CANCELED
             await db.commit()
 
-        print(
-            f"⚠️ PaymentIntent canceled: {payment_id}, " f"reason: {cancellation_reason}"
-        )
+        print(f"⚠️ PaymentIntent canceled: {payment_id}, reason: {cancellation_reason}")
         return {
             "status": event.type,
             "payment_id": payment_id,

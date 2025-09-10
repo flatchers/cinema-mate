@@ -43,7 +43,6 @@ from src.security.token_manipulation import (
     create_refresh_token,
     create_access_token,
     get_current_user,
-    authenticate_user,
     get_user_token,
     decode_token,
 )
