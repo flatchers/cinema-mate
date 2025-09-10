@@ -136,3 +136,18 @@ class MovieUpdate(BaseModel):
     price: float = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MovieUpdateResponseSchema(BaseModel):
+    id: int
+    name: str | None
+    year: int | None
+    time: int | None
+    imdb: float | None
+    votes: int | None
+    meta_score: float | None
+    gross: float | None
+    description: str | None
+    price: float | None
+
+    model_config = ConfigDict(from_attributes=True)
