@@ -8,8 +8,14 @@ from sqlalchemy.orm import sessionmaker
 
 from src.config.settings import settings
 
-POSTGRESQL_DATABASE_URL = (f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@"
-                           f"{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
+port = int(settings.POSTGRES_PORT) if settings.POSTGRES_PORT else 5432
+POSTGRESQL_DATABASE_URL = (
+    f"postgresql+asyncpg://{settings.POSTGRES_USER}:"
+    f"{settings.POSTGRES_PASSWORD}@"
+    f"{settings.POSTGRES_HOST}:"
+    f"{port}/"
+    f"{settings.POSTGRES_DB}"
+)
 postgresql_engine = create_async_engine(POSTGRESQL_DATABASE_URL, echo=False)
 AsyncPostgresqlSessionLocal = sessionmaker(  # type: ignore
     bind=postgresql_engine,
@@ -37,15 +43,16 @@ async def get_postgresql_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 @asynccontextmanager
-async def get_postgresql_db_contextmanager() -> AsyncGenerator[AsyncSession, None]:
+async def get_postgresql_db_contextmanager() -> (AsyncGenerator)[AsyncSession, None]:
     """
     Provide an asynchronous database session using a context manager.
 
-    This function allows for managing the database session within a `with` statement.
-    It ensures that the session is properly initialized and closed after execution.
+    This function allows for managing the database
+    session within a `with` statement.
+    It ensures that the session is properly
+    initialized and closed after execution.
 
     :return: An asynchronous generator yielding an AsyncSession instance.
     """
     async with AsyncPostgresqlSessionLocal() as session:
         yield session
-        

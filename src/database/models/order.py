@@ -22,37 +22,47 @@ if TYPE_CHECKING:
 
 class OrderModel(Base):
     __tablename__ = "orders"
-    __table_args__ = {'extend_existing': True}
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
 
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="orders")
     order_items: Mapped[list["OrderItemModel"]] = relationship(
-        "OrderItemModel",
-        back_populates="order",
-        cascade="all, delete-orphan"
+        "OrderItemModel", back_populates="order", cascade="all, delete-orphan"
     )
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     status: Mapped[StatusEnum] = mapped_column(
         Enum(StatusEnum),
         nullable=False,
         default=StatusEnum.PENDING,
-        server_default=StatusEnum.PENDING
+        server_default=StatusEnum.PENDING,
     )
     total_amount: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2))
-    payments: Mapped[List["PaymentModel"]] = relationship("PaymentModel", back_populates="order")
+    payments: Mapped[List["PaymentModel"]] = relationship(
+        "PaymentModel", back_populates="order"
+    )
 
 
 class OrderItemModel(Base):
     __tablename__ = "order_items"
-    __table_args__ = {'extend_existing': True}
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
-    movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id", ondelete="CASCADE"), nullable=False)
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    movie_id: Mapped[int] = mapped_column(
+        ForeignKey("movies.id", ondelete="CASCADE"), nullable=False
+    )
     price_at_order: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2))
 
-    order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="order_items")
+    order: Mapped["OrderModel"] = relationship(
+        "OrderModel", back_populates="order_items"
+    )
     movie: Mapped["Movie"] = relationship("Movie", back_populates="order_items")
-    payment_items: Mapped[List["PaymentItemModel"]] = relationship("PaymentItemModel", back_populates="order_item")
+    payment_items: Mapped[List["PaymentItemModel"]] = relationship(
+        "PaymentItemModel", back_populates="order_item"
+    )

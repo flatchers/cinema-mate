@@ -1,0 +1,39 @@
+[33mcommit 63900ed14ca17401c2daac4ebaa4fbe7a6a4ed5f[m
+Author: Heorhii Nadiradze <swain.volt@gmail.com>
+Date:   Wed Aug 6 13:04:00 2025 +0300
+
+    Reinitialize Alembic migrations: switch from SQLite to PostgreSQL
+
+[1mdiff --git a/alembic.ini b/alembic.ini[m
+[1mindex 91d8b67..0396ec3 100644[m
+[1m--- a/alembic.ini[m
+[1m+++ b/alembic.ini[m
+[36m@@ -63,7 +63,7 @@[m [mversion_path_separator = os[m
+ # are written from script.py.mako[m
+ # output_encoding = utf-8[m
+ [m
+[31m-sqlalchemy.url = sqlite:///./online_cinema.db[m
+[32m+[m[32msqlalchemy.url = postgresql://username:password@db:5432/dbname[m
+ [m
+ [m
+ [post_write_hooks][m
+[1mdiff --git a/alembic/env.py b/alembic/env.py[m
+[1mindex e904052..2cc862c 100644[m
+[1m--- a/alembic/env.py[m
+[1m+++ b/alembic/env.py[m
+[36m@@ -6,11 +6,15 @@[m [mfrom sqlalchemy import pool[m
+ from alembic import context[m
+ [m
+ from src.database.models.base import Base[m
+[32m+[m[32mfrom src.database.session_postgresql import sync_database_url[m
+ [m
+ # this is the Alembic Config object, which provides[m
+ # access to the values within the .ini file in use.[m
+ config = context.config[m
+ [m
+[32m+[m[32mconfig.set_main_option('sqlalchemy.url', sync_database_url)[m
+[32m+[m
+[32m+[m
+ # Interpret the config file for Python logging.[m
+ # This line sets up loggers basically.[m
+ if config.config_file_name is not None:[m

@@ -1,18 +1,20 @@
-import datetime
 from datetime import datetime, timezone, timedelta
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport
 from uuid import uuid4
 
 from sqlalchemy import Result, select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.functions import count
 
-from security.validations import verify_password, password_hash_pwd, password_validator_func
 from src.database.models import UserModel
-from src.database.models.accounts import ActivationTokenModel, PasswordResetTokenModel, RefreshTokenModel, UserGroup, \
-    UserGroupEnum
+from src.database.models.accounts import (
+    ActivationTokenModel,
+    PasswordResetTokenModel,
+    RefreshTokenModel,
+    UserGroup,
+    UserGroupEnum,
+)
 from src.main import app
 
 transport = ASGITransport(app=app)
@@ -20,11 +22,10 @@ transport = ASGITransport(app=app)
 
 @pytest.mark.asyncio
 async def test_user_registration(client, db_session):
-    response = await client.post("/api/v1/accounts/register/", json={
-        "email": "testuser@example.com",
-        "password": "Ma@12345"
-    }
-                                 )
+    response = await client.post(
+        "/api/v1/accounts/register/",
+        json={"email": "testuser@example.com", "password": "Ma@12345"},
+    )
     assert response.status_code == 201
 
     data = response.json()
@@ -33,7 +34,9 @@ async def test_user_registration(client, db_session):
     user = result.scalars().first()
     assert user.id == data["id"], "User not found"
 
-    stmt = select(ActivationTokenModel).where(ActivationTokenModel.user_id == UserModel.id)
+    stmt = select(ActivationTokenModel).where(
+        ActivationTokenModel.user_id == UserModel.id
+    )
     result: Result = await db_session.execute(stmt)
     activation_token = result.scalars().first()
 
@@ -44,16 +47,21 @@ async def test_user_registration(client, db_session):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid_password, expected_error", [
-    ("Sh0rt1", "Make sure your password is at lest 8 letters"),
-    ("without1capitalletter", "Make sure your password has a capital letter in it"),
-    ("WiThoutnumber", "Make sure your password has a number in it"),
-])
-async def test_user_registration_invalid_password(client, db_session, invalid_password, expected_error):
-    response = await client.post("/api/v1/accounts/register/", json={
-            "email": "testuser1@example.com",
-            "password": invalid_password
-    })
+@pytest.mark.parametrize(
+    "invalid_password, expected_error",
+    [
+        ("Sh0rt1", "Make sure your password is at lest 8 letters"),
+        ("without1capitalletter", "Make sure your password has a capital letter in it"),
+        ("WiThoutnumber", "Make sure your password has a number in it"),
+    ],
+)
+async def test_user_registration_invalid_password(
+    client, db_session, invalid_password, expected_error
+):
+    response = await client.post(
+        "/api/v1/accounts/register/",
+        json={"email": "testuser1@example.com", "password": invalid_password},
+    )
 
     assert response.status_code == 422
 
@@ -64,10 +72,7 @@ async def test_user_registration_invalid_password(client, db_session, invalid_pa
 @pytest.mark.asyncio
 async def test_user_registration_conflict_scenarios(client, db_session):
 
-    payload = {
-        "email": "conflictuser@example.com",
-        "password": "Ma@12345"
-    }
+    payload = {"email": "conflictuser@example.com", "password": "Ma@12345"}
 
     response = await client.post("/api/v1/accounts/register/", json=payload)
     assert response.status_code == 201, "should be first user registration"
@@ -84,15 +89,14 @@ async def test_user_registration_conflict_scenarios(client, db_session):
 
     response_data = response.json()
     expected_message = "Email already exist"
-    assert response_data["detail"] == expected_message, f"should be error {expected_message}"
+    assert (
+        response_data["detail"] == expected_message
+    ), f"should be error {expected_message}"
 
 
 @pytest.mark.asyncio
 async def test_user_token_activation_success(client, db_session):
-    payload = {
-        "email": f"testuser@example.com",
-        "password": "Ma@12345"
-    }
+    payload = {"email": "testuser@example.com", "password": "Ma@12345"}
 
     response = await client.post("/api/v1/accounts/register/", json=payload)
     response_data = response.json()
@@ -106,10 +110,7 @@ async def test_user_token_activation_success(client, db_session):
 
     assert token.user.is_active is False, "after registration, user is not active"
 
-    token_payload = {
-        "email": f"testuser@example.com",
-        "token": token.token
-    }
+    token_payload = {"email": "testuser@example.com", "token": token.token}
     response_token = await client.post("/api/v1/accounts/activate/", json=token_payload)
     assert response_token.status_code == 200
     stmt = (
@@ -122,7 +123,9 @@ async def test_user_token_activation_success(client, db_session):
     response_data_2 = response_token.json()
     expected_message = "Activation successful"
     await db_session.refresh(user)
-    assert response_data_2["detail"] == expected_message, f"Expected message - {expected_message}"
+    assert (
+        response_data_2["detail"] == expected_message
+    ), f"Expected message - {expected_message}"
     assert user.is_active is True, "Expected activated user account"
     stmt = (
         select(ActivationTokenModel)
@@ -136,26 +139,22 @@ async def test_user_token_activation_success(client, db_session):
 
 @pytest.mark.asyncio
 async def test_user_token_activation_invalid_scenarios(client, db_session):
-    payload = {
-        "email": f"testuser@example.com",
-        "password": "Ma@12345"
-    }
+    payload = {"email": "testuser@example.com", "password": "Ma@12345"}
 
     response = await client.post("/api/v1/accounts/register/", json=payload)
     assert response.status_code == 201
 
     response_data = response.json()
 
-    payload_token = {
-        "email": "testuser@example.com",
-        "token": str(uuid4())
-    }
+    payload_token = {"email": "testuser@example.com", "token": str(uuid4())}
 
     response_token = await client.post("/api/v1/accounts/activate/", json=payload_token)
 
     response_data_token = response_token.json()
     expected_message = "Invalid token entered"
-    assert response_data_token["detail"] == expected_message, f"Expected message - {expected_message}"
+    assert (
+        response_data_token["detail"] == expected_message
+    ), f"Expected message - {expected_message}"
 
     stmt = (
         select(ActivationTokenModel)
@@ -167,15 +166,16 @@ async def test_user_token_activation_invalid_scenarios(client, db_session):
 
     assert payload_token["token"] != token.token
 
-    payload_token_true = {
-        "email": "testuser@example.com",
-        "token": token.token
-    }
+    payload_token_true = {"email": "testuser@example.com", "token": token.token}
 
-    response_2 = await client.post("/api/v1/accounts/activate/", json=payload_token_true)
+    response_2 = await client.post(
+        "/api/v1/accounts/activate/", json=payload_token_true
+    )
     assert response_2.status_code == 200, "Expected token is activated"
     response_data_2 = response_2.json()
-    assert response_data_2["detail"] == "Activation successful", "Expected activation successful"
+    assert (
+        response_data_2["detail"] == "Activation successful"
+    ), "Expected activation successful"
 
     stmt = select(UserModel).where(UserModel.email == payload_token_true["email"])
     result: Result = await db_session.execute(stmt)
@@ -194,7 +194,9 @@ async def test_user_token_activation_invalid_scenarios(client, db_session):
     user_last = result.scalars().first()
     await db_session.refresh(user_last)
 
-    response_3 = await client.post("/api/v1/accounts/activate/", json=payload_token_true)
+    response_3 = await client.post(
+        "/api/v1/accounts/activate/", json=payload_token_true
+    )
     assert response_3.status_code == 409, "user should be already active"
     response_data_3 = response_3.json()
 
@@ -203,10 +205,7 @@ async def test_user_token_activation_invalid_scenarios(client, db_session):
 
 @pytest.mark.asyncio
 async def test_user_password_reset(client, db_session):
-    payload = {
-        "email": f"testuser@example.com",
-        "password": "Ma@12345"
-    }
+    payload = {"email": "testuser@example.com", "password": "Ma@12345"}
     response_register = await client.post("/api/v1/accounts/register/", json=payload)
     assert response_register.status_code == 201
 
@@ -218,10 +217,7 @@ async def test_user_password_reset(client, db_session):
     result: Result = await db_session.execute(stmt)
     token = result.scalars().first()
 
-    payload = {
-        "email": "testuser@example.com",
-        "token": token.token
-    }
+    payload = {"email": "testuser@example.com", "token": token.token}
 
     response = await client.post("/api/v1/accounts/activate/", json=payload)
 
@@ -235,12 +231,14 @@ async def test_user_password_reset(client, db_session):
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
 
-    payload = {
-        "email": "testuser@example.com"
-    }
-    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    payload = {"email": "testuser@example.com"}
+    response = await client.post(
+        "/api/v1/accounts/password-reset/request/", json=payload
+    )
 
-    stmt = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id)
+    stmt = select(PasswordResetTokenModel).where(
+        PasswordResetTokenModel.user_id == user.id
+    )
     result: Result = await db_session.execute(stmt)
     reset_password = result.scalars().all()
 
@@ -255,10 +253,7 @@ async def test_user_password_reset(client, db_session):
 
 @pytest.mark.asyncio
 async def test_user_password_reset_invalid_scenarios(client, db_session):
-    payload = {
-        "email": f"testuser@example.com",
-        "password": "Ma@12345"
-    }
+    payload = {"email": "testuser@example.com", "password": "Ma@12345"}
     response_register = await client.post("/api/v1/accounts/register/", json=payload)
     assert response_register.status_code == 201
     response_data2 = response_register.json()
@@ -271,21 +266,22 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
     result: Result = await db_session.execute(stmt)
     token = result.scalars().first()
 
-    payload = {
-        "email": "testuser@example.com",
-        "token": token.token
-    }
+    payload = {"email": "testuser@example.com", "token": token.token}
 
     response = await client.post("/api/v1/accounts/activate/", json=payload)
 
     assert response.status_code == 200
 
-    invalid_email = {
-        "email": "notcurrentemail@example.com"
-    }
-    response = await client.post("/api/v1/accounts/password-reset/request/", json=invalid_email)
+    invalid_email = {"email": "notcurrentemail@example.com"}
+    response = await client.post(
+        "/api/v1/accounts/password-reset/request/", json=invalid_email
+    )
 
-    stmt = select(UserModel).options(joinedload(UserModel.password_reset_token)).where(UserModel.id == response_data2["id"])
+    stmt = (
+        select(UserModel)
+        .options(joinedload(UserModel.password_reset_token))
+        .where(UserModel.id == response_data2["id"])
+    )
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
     assert user.password_reset_token is None
@@ -293,14 +289,15 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
     assert response.status_code == 400
 
     response_data = response.json()
-    assert response_data["detail"] == "Invalid email or password", \
-        "Expected -- 'Invalid email or password'"
+    assert (
+        response_data["detail"] == "Invalid email or password"
+    ), "Expected -- 'Invalid email or password'"
 
-    payload = {
-        "email": "testuser@example.com"
-    }
+    payload = {"email": "testuser@example.com"}
 
-    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    response = await client.post(
+        "/api/v1/accounts/password-reset/request/", json=payload
+    )
     assert response.status_code == 200
 
     stmt = (
@@ -311,12 +308,18 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
 
-    stmt = select(PasswordResetTokenModel).join(UserModel).where(PasswordResetTokenModel.user_id == user.id)
+    stmt = (
+        select(PasswordResetTokenModel)
+        .join(UserModel)
+        .where(PasswordResetTokenModel.user_id == user.id)
+    )
     result: Result = await db_session.execute(stmt)
     password_reset = result.scalars().all()
 
     assert len(password_reset) == 1
-    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    response = await client.post(
+        "/api/v1/accounts/password-reset/request/", json=payload
+    )
 
     assert response.status_code == 200
 
@@ -328,10 +331,7 @@ async def test_user_password_reset_invalid_scenarios(client, db_session):
 
 @pytest.mark.asyncio
 async def test_reset_password_confirm_success(client, db_session):
-    payload = {
-        "email": "testuser@example.com",
-        "password": "Test@12345"
-    }
+    payload = {"email": "testuser@example.com", "password": "Test@12345"}
 
     response = await client.post("/api/v1/accounts/register/", json=payload)
     assert response.status_code == 201
@@ -341,13 +341,14 @@ async def test_reset_password_confirm_success(client, db_session):
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
 
-    stmt = select(ActivationTokenModel).join(UserModel).where(ActivationTokenModel.user_id == user.id)
+    stmt = (
+        select(ActivationTokenModel)
+        .join(UserModel)
+        .where(ActivationTokenModel.user_id == user.id)
+    )
     result: Result = await db_session.execute(stmt)
     activation_token_model = result.scalars().first()
-    payload = {
-        "email": "testuser@example.com",
-        "token": activation_token_model.token
-    }
+    payload = {"email": "testuser@example.com", "token": activation_token_model.token}
 
     response = await client.post("/api/v1/accounts/activate/", json=payload)
     assert response.status_code == 200
@@ -356,29 +357,46 @@ async def test_reset_password_confirm_success(client, db_session):
         "email": "testuser@example.com",
     }
 
-    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    response = await client.post(
+        "/api/v1/accounts/password-reset/request/", json=payload
+    )
     assert response.status_code == 200
 
-    stmt = select(PasswordResetTokenModel).join(UserModel).where(PasswordResetTokenModel.user_id == UserModel.id)
+    stmt = (
+        select(PasswordResetTokenModel)
+        .join(UserModel)
+        .where(PasswordResetTokenModel.user_id == UserModel.id)
+    )
     result: Result = await db_session.execute(stmt)
     password_reset_token_model = result.scalars().first()
 
     payload = {
         "email": "testuser@example.com",
         "password": "Upload@12345",
-        "token": password_reset_token_model.token
+        "token": password_reset_token_model.token,
     }
 
-    response = await client.post("/api/v1/accounts/password-reset/complete/", json=payload)
+    response = await client.post(
+        "/api/v1/accounts/password-reset/complete/", json=payload
+    )
     response_data = response.json()
     assert response_data["message"] == "password successfully changed"
     assert response.status_code == 200
 
     current_time = datetime.now(timezone.utc)
-    assert password_reset_token_model.expires_at.replace(tzinfo=timezone.utc) > current_time
-    assert password_reset_token_model.expires_at.replace(tzinfo=timezone.utc) < current_time + timedelta(days=1)
+    assert (
+        password_reset_token_model.expires_at.replace(tzinfo=timezone.utc)
+        > current_time
+    )
+    assert password_reset_token_model.expires_at.replace(
+        tzinfo=timezone.utc
+    ) < current_time + timedelta(days=1)
 
-    stmt = select(RefreshTokenModel).join(UserModel).where(RefreshTokenModel.user_id == UserModel.id)
+    stmt = (
+        select(RefreshTokenModel)
+        .join(UserModel)
+        .where(RefreshTokenModel.user_id == UserModel.id)
+    )
     result = await db_session.execute(stmt)
     refresh_token_model = result.scalars().all()
 
@@ -391,10 +409,7 @@ async def test_reset_password_confirm_success(client, db_session):
 
 @pytest.mark.asyncio
 async def test_reset_password_confirm_invalid_scenarios(client, db_session):
-    payload_register = {
-        "email": "testuser@example.com",
-        "password": "Test@12345"
-    }
+    payload_register = {"email": "testuser@example.com", "password": "Test@12345"}
 
     response = await client.post("/api/v1/accounts/register/", json=payload_register)
     assert response.status_code == 201
@@ -403,12 +418,16 @@ async def test_reset_password_confirm_invalid_scenarios(client, db_session):
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
 
-    stmt = select(ActivationTokenModel).join(UserModel).where(ActivationTokenModel.user_id == user.id)
+    stmt = (
+        select(ActivationTokenModel)
+        .join(UserModel)
+        .where(ActivationTokenModel.user_id == user.id)
+    )
     result: Result = await db_session.execute(stmt)
     activation_token_model = result.scalars().first()
     payload = {
         "email": payload_register["email"],
-        "token": activation_token_model.token
+        "token": activation_token_model.token,
     }
 
     response = await client.post("/api/v1/accounts/activate/", json=payload)
@@ -418,16 +437,20 @@ async def test_reset_password_confirm_invalid_scenarios(client, db_session):
         "email": payload_register["email"],
     }
 
-    response = await client.post("/api/v1/accounts/password-reset/request/", json=payload)
+    response = await client.post(
+        "/api/v1/accounts/password-reset/request/", json=payload
+    )
     assert response.status_code == 200
 
     payload = {
         "email": "testuser@example.com",
         "password": "Upload@12345",
-        "token": "invalid_token"
+        "token": "invalid_token",
     }
 
-    response = await client.post("/api/v1/accounts/password-reset/complete/", json=payload)
+    response = await client.post(
+        "/api/v1/accounts/password-reset/complete/", json=payload
+    )
     assert response.status_code == 401
     response_data = response.json()
     assert response_data["detail"] == "Invalid token"
@@ -437,7 +460,7 @@ async def test_reset_password_confirm_invalid_scenarios(client, db_session):
 async def test_user_login_success(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.USER))
@@ -452,7 +475,7 @@ async def test_user_login_success(client, db_session):
     user = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     user.is_active = True
     db_session.add(user)
@@ -461,7 +484,7 @@ async def test_user_login_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
     response = await client.post("/api/v1/accounts/login/", data=payload)
     assert response.status_code == 200
@@ -486,7 +509,7 @@ async def test_user_login_success(client, db_session):
 async def test_user_login_invalid_scenarios(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.USER))
@@ -501,21 +524,16 @@ async def test_user_login_invalid_scenarios(client, db_session):
     user1 = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     db_session.add(user1)
     await db_session.commit()
     assert user1.is_active is False, "Expected False"
 
-    payload = {
-        "username": "testemail@eample.com",
-        "password": "InvalidPassword123!"
-    }
+    payload = {"username": "testemail@eample.com", "password": "InvalidPassword123!"}
 
     user = UserModel(
-        email=payload["username"],
-        password="1123441Ar@",
-        group_id=user_group.id
+        email=payload["username"], password="1123441Ar@", group_id=user_group.id
     )
     user.is_active = True
     db_session.add(user)
@@ -532,7 +550,7 @@ async def test_user_login_invalid_scenarios(client, db_session):
 async def test_logout_success(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.USER))
@@ -547,7 +565,7 @@ async def test_logout_success(client, db_session):
     user = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     user.is_active = True
     db_session.add(user)
@@ -556,7 +574,7 @@ async def test_logout_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
     stmt = select(UserModel).where(UserModel.email == payload["username"])
     result: Result = await db_session.execute(stmt)
@@ -575,7 +593,7 @@ async def test_logout_success(client, db_session):
 
     response = await client.post(
         "/api/v1/accounts/logout/",
-        headers={"Authorization": f"Bearer {response_data_login["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_login["access_token"]}"},
     )
     assert not refresh
     assert response.status_code == 200
@@ -587,7 +605,7 @@ async def test_logout_success(client, db_session):
 async def test_refresh_success(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.USER))
@@ -602,7 +620,7 @@ async def test_refresh_success(client, db_session):
     user = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     user.is_active = True
     db_session.add(user)
@@ -611,15 +629,11 @@ async def test_refresh_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
     stmt = select(UserModel).where(UserModel.email == payload["username"])
     result: Result = await db_session.execute(stmt)
     user = result.scalars().first()
-
-    stmt = select(RefreshTokenModel).where(RefreshTokenModel.user_id == user.id)
-    refresh_result = await db_session.execute(stmt)
-    refresh = refresh_result.scalars().first()
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
     assert response.status_code == 200
@@ -628,9 +642,7 @@ async def test_refresh_success(client, db_session):
     assert response_data_login["access_token"], "access token is empty"
     assert response_data_login["refresh_token"], "refresh token is empty"
 
-    payload = {
-        "refresh_token": response_data_login["refresh_token"]
-    }
+    payload = {"refresh_token": response_data_login["refresh_token"]}
     response = await client.post("/api/v1/accounts/refresh/", json=payload)
 
     assert response.status_code == 200
@@ -643,7 +655,7 @@ async def test_refresh_success(client, db_session):
 async def test_update_user_success(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.USER))
@@ -660,7 +672,7 @@ async def test_update_user_success(client, db_session):
     admin = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group_admin.id
+        group_id=user_group_admin.id,
     )
 
     stmt = select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
@@ -674,7 +686,7 @@ async def test_update_user_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
     response = await client.post("/api/v1/accounts/login/", data=payload)
     assert response.status_code == 200
@@ -683,7 +695,7 @@ async def test_update_user_success(client, db_session):
     user = UserModel(
         email="test_user@example.com",
         password="StrongPassword123!",
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     db_session.add(user)
     await db_session.flush()
@@ -695,15 +707,12 @@ async def test_update_user_success(client, db_session):
     result: Result = await db_session.execute(stmt)
     selected_admin = result.scalars().first()
 
-    payload = {
-        "group": str(UserGroupEnum.MODERATOR.value),
-        "is_active": False
-    }
+    payload = {"group": str(UserGroupEnum.MODERATOR.value), "is_active": False}
 
     response = await client.post(
         f"/api/v1/accounts/update/{selected_admin.id}/",
         json=payload,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
 
     assert response.status_code == 200

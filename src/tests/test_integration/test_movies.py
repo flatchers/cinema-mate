@@ -1,10 +1,15 @@
 import pytest
 from sqlalchemy import select, Result
-from sqlalchemy.orm import selectinload
 
-from src.database.models.movies import Comment, Genre, Rate
+from src.database.models.movies import Comment, Rate
 from src.database.models.shopping_cart import CartModel, CartItemsModel
-from src.database.models import Movie, PaymentModel, OrderItemModel, OrderModel, UserModel
+from src.database.models import (
+    Movie,
+    PaymentModel,
+    OrderItemModel,
+    OrderModel,
+    UserModel,
+)
 from src.database.models.order import StatusEnum
 from src.database.models.accounts import UserGroup, UserGroupEnum
 
@@ -13,7 +18,7 @@ from src.database.models.accounts import UserGroup, UserGroupEnum
 async def test_film_create(db_session, client):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -26,7 +31,7 @@ async def test_film_create(db_session, client):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -35,7 +40,7 @@ async def test_film_create(db_session, client):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -60,7 +65,7 @@ async def test_film_create(db_session, client):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -87,11 +92,12 @@ async def test_film_create(db_session, client):
     assert movie.id == response_data["id"]
     assert len(movies) == 1
 
+
 @pytest.mark.asyncio
 async def test_film_create_invalid_scenarios(db_session, client):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -105,7 +111,7 @@ async def test_film_create_invalid_scenarios(db_session, client):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -114,7 +120,7 @@ async def test_film_create_invalid_scenarios(db_session, client):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -139,25 +145,24 @@ async def test_film_create_invalid_scenarios(db_session, client):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     response_data = response.json()
-    assert "error: (sqlite3.IntegrityError) UNIQUE constraint failed" in response_data["detail"]
+    assert (
+        "error: (sqlite3.IntegrityError) " "UNIQUE constraint failed"
+    ) in response_data["detail"]
 
 
 @pytest.mark.asyncio
 async def test_film_create_invalid_roles(client, db_session):
-    payload_register = {
-        "email": "sample@user.com",
-        "password": "StrongPassword123!"
-    }
+    payload_register = {"email": "sample@user.com", "password": "StrongPassword123!"}
     db_session.add(UserGroup(name=UserGroupEnum.USER))
     await db_session.flush()
 
@@ -168,7 +173,7 @@ async def test_film_create_invalid_roles(client, db_session):
     sample_user = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group.id
+        group_id=user_group.id,
     )
 
     sample_user.is_active = True
@@ -178,7 +183,7 @@ async def test_film_create_invalid_roles(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -204,18 +209,18 @@ async def test_film_create_invalid_roles(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 403, "Expected FOBIDDEN error"
     response_data = response.json()
-    assert response_data["detail"] == "Access forbidden: insufficient permissions."
+    assert response_data["detail"] == ("Access forbidden: insufficient permissions.")
 
 
 @pytest.mark.asyncio
 async def test_movie_update_success(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -228,7 +233,7 @@ async def test_movie_update_success(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -237,7 +242,7 @@ async def test_movie_update_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -263,7 +268,7 @@ async def test_movie_update_success(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 201
     response_name = response.json()
@@ -273,7 +278,7 @@ async def test_movie_update_success(client, db_session):
     response = await client.patch(
         f"/api/v1/movies/update/{response_name["id"]}/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 200
 
@@ -285,7 +290,7 @@ async def test_movie_update_success(client, db_session):
 async def test_movie_delete(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -298,7 +303,7 @@ async def test_movie_delete(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -307,7 +312,7 @@ async def test_movie_delete(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -333,7 +338,7 @@ async def test_movie_delete(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     response_data_create = response.json()
     assert response.status_code == 201
@@ -353,8 +358,8 @@ async def test_movie_delete(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
-        )
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
+    )
     stmt = select(Movie).where(Movie.id == response_data_create["id"])
     result: Result = await db_session.execute(stmt)
     movie = result.scalars().first()
@@ -367,16 +372,14 @@ async def test_movie_delete(client, db_session):
     assert not movies
     assert len(movies) == 0
 
-    assert response.status_code == 200
-    response_data_delete = response.json()
-    assert response_data_delete["detail"] == "Movie deleted successfully"
+    assert response.status_code == 204
 
 
 @pytest.mark.asyncio
 async def test_delete_nonexistent_movie_returns_404(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -389,7 +392,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -398,7 +401,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -424,7 +427,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     response_data_create = response.json()
     assert response.status_code == 201
@@ -444,7 +447,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     stmt = select(Movie).where(Movie.id == response_data_create["id"])
     result: Result = await db_session.execute(stmt)
@@ -458,14 +461,12 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
     assert not movies
     assert len(movies) == 0
 
-    assert response.status_code == 200
-    response_data_delete = response.json()
-    assert response_data_delete["detail"] == "Movie deleted successfully"
+    assert response.status_code == 204
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
-        )
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
+    )
     assert response.status_code == 404
     response_data = response.json()
     assert response_data["detail"] == "movie not found"
@@ -475,7 +476,7 @@ async def test_delete_nonexistent_movie_returns_404(client, db_session):
 async def test_purchase_conflict_when_film_already_bought(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -490,7 +491,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     user = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     user.is_active = True
     db_session.add(user)
@@ -499,7 +500,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -525,7 +526,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_create = response.json()
@@ -559,9 +560,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     await db_session.commit()
 
     order_create = OrderModel(
-        user_id=user.id,
-        status=StatusEnum.PAID,
-        total_amount=movie.price
+        user_id=user.id, status=StatusEnum.PAID, total_amount=movie.price
     )
     db_session.add(order_create)
     await db_session.commit()
@@ -572,9 +571,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     assert order
 
     order_items = OrderItemModel(
-        order_id=order.id,
-        movie_id=movie.id,
-        price_at_order=movie.price
+        order_id=order.id, movie_id=movie.id, price_at_order=movie.price
     )
     db_session.add(order_items)
     await db_session.commit()
@@ -589,9 +586,7 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
     print("ORDER_ITEM ID", order_item.id)
 
     payment_create = PaymentModel(
-        user_id=user.id,
-        order_id=order.id,
-        amount=order.total_amount
+        user_id=user.id, order_id=order.id, amount=order.total_amount
     )
     db_session.add(payment_create)
     await db_session.commit()
@@ -604,8 +599,8 @@ async def test_purchase_conflict_when_film_already_bought(client, db_session):
 
     response = await client.delete(
         f"/api/v1/movies/delete/{response_data_create["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"}
-        )
+        headers={"Authorization": f"Bearer {response_data_token["access_token"]}"},
+    )
     assert response.status_code == 409, "Expected message: current film is bought"
 
     stmt = select(Movie).where(Movie.id == response_data_create["id"])
@@ -620,7 +615,7 @@ async def test_movie_list_success(client, db_session):
 
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -633,7 +628,7 @@ async def test_movie_list_success(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -642,7 +637,7 @@ async def test_movie_list_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -667,7 +662,7 @@ async def test_movie_list_success(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -694,7 +689,7 @@ async def test_movie_list_invalid_scenarios(client, db_session):
 async def test_movie_search_success(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -707,7 +702,7 @@ async def test_movie_search_success(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -716,7 +711,7 @@ async def test_movie_search_success(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -741,7 +736,7 @@ async def test_movie_search_success(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -769,7 +764,7 @@ async def test_movie_search_success(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_new,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -788,7 +783,7 @@ async def test_movie_search_success(client, db_session):
 async def test_movie_search_empty_list(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -801,7 +796,7 @@ async def test_movie_search_empty_list(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -810,7 +805,7 @@ async def test_movie_search_empty_list(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -826,7 +821,7 @@ async def test_movie_search_empty_list(client, db_session):
 async def test_movie_detail(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -839,7 +834,7 @@ async def test_movie_detail(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -848,7 +843,7 @@ async def test_movie_detail(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -873,13 +868,15 @@ async def test_movie_detail(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
     print(response_data)
 
-    response = await client.get("/api/v1/movies/detail/", params={"movie_id": response_data["id"]})
+    response = await client.get(
+        "/api/v1/movies/detail/", params={"movie_id": response_data["id"]}
+    )
     assert response.status_code == 200
 
     response_data_detail = response.json()
@@ -891,7 +888,7 @@ async def test_movie_detail(client, db_session):
 async def test_add_and_remove_like(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -904,7 +901,7 @@ async def test_add_and_remove_like(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -913,7 +910,7 @@ async def test_add_and_remove_like(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -938,21 +935,21 @@ async def test_add_and_remove_like(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/like/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_like = response.json()
     assert response_data_like["like_count"] == 1
     response = await client.post(
         f"/api/v1/movies/like/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     response_data_like = response.json()
     assert response_data_like["like_count"] == 0
@@ -962,7 +959,7 @@ async def test_add_and_remove_like(client, db_session):
 async def test_write_comments(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -975,7 +972,7 @@ async def test_write_comments(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -984,7 +981,7 @@ async def test_write_comments(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1009,7 +1006,7 @@ async def test_write_comments(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
@@ -1021,7 +1018,7 @@ async def test_write_comments(client, db_session):
     response = await client.post(
         f"/api/v1/movies/{response_data["id"]}/comments/",
         json={"comments": "this film not bad"},
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1035,7 +1032,7 @@ async def test_write_comments(client, db_session):
 async def test_add_and_remove_favourite(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -1048,7 +1045,7 @@ async def test_add_and_remove_favourite(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -1057,7 +1054,7 @@ async def test_add_and_remove_favourite(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1082,14 +1079,14 @@ async def test_add_and_remove_favourite(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1098,7 +1095,7 @@ async def test_add_and_remove_favourite(client, db_session):
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 200
     response_data_rem = response.json()
@@ -1109,7 +1106,7 @@ async def test_add_and_remove_favourite(client, db_session):
 async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -1122,7 +1119,7 @@ async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -1131,7 +1128,7 @@ async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1139,7 +1136,7 @@ async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
     assert response.status_code == 200
     response = await client.post(
         f"/api/v1/movies/favourite/{999}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 404
@@ -1149,7 +1146,7 @@ async def test_add_and_remove_favourite_invalid_scenarios(client, db_session):
 async def test_favourite_list(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -1162,7 +1159,7 @@ async def test_favourite_list(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -1171,7 +1168,7 @@ async def test_favourite_list(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1196,14 +1193,14 @@ async def test_favourite_list(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1211,8 +1208,8 @@ async def test_favourite_list(client, db_session):
     assert response_data_fav["message"] == "added to favourite"
 
     response = await client.get(
-        f"/api/v1/movies/favourite/list/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        "/api/v1/movies/favourite/list/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 200
@@ -1221,7 +1218,7 @@ async def test_favourite_list(client, db_session):
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 200
 
@@ -1229,8 +1226,8 @@ async def test_favourite_list(client, db_session):
     assert response_data_fav["message"] == "remove from favourite"
 
     response = await client.get(
-        f"/api/v1/movies/favourite/list/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        "/api/v1/movies/favourite/list/",
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
 
     assert response.status_code == 200
@@ -1242,7 +1239,7 @@ async def test_favourite_list(client, db_session):
 async def test_favourite_search(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -1255,7 +1252,7 @@ async def test_favourite_search(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -1264,7 +1261,7 @@ async def test_favourite_search(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1289,14 +1286,14 @@ async def test_favourite_search(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
 
     response = await client.post(
         f"/api/v1/movies/favourite/{response_data["id"]}/",
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1306,7 +1303,7 @@ async def test_favourite_search(client, db_session):
     response = await client.get(
         "/api/v1/movies/favourite/search/",
         headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
-        params={"search": "a"}
+        params={"search": "a"},
     )
     assert response.status_code == 200
     response_data = response.json()
@@ -1317,7 +1314,7 @@ async def test_favourite_search(client, db_session):
 async def test_movies_of_genre(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -1330,7 +1327,7 @@ async def test_movies_of_genre(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -1339,7 +1336,7 @@ async def test_movies_of_genre(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1394,21 +1391,21 @@ async def test_movies_of_genre(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie2,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie3,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
 
@@ -1440,7 +1437,7 @@ async def test_movies_of_genre(client, db_session):
 async def test_rate(client, db_session):
     payload_register = {
         "email": "testuser@example.com",
-        "password": "StrongPassword123!"
+        "password": "StrongPassword123!",
     }
 
     db_session.add(UserGroup(name=UserGroupEnum.MODERATOR))
@@ -1453,7 +1450,7 @@ async def test_rate(client, db_session):
     moderator = UserModel(
         email=payload_register["email"],
         password=payload_register["password"],
-        group_id=moderator_group.id
+        group_id=moderator_group.id,
     )
     moderator.is_active = True
     db_session.add(moderator)
@@ -1462,7 +1459,7 @@ async def test_rate(client, db_session):
 
     payload = {
         "username": payload_register["email"],
-        "password": payload_register["password"]
+        "password": payload_register["password"],
     }
 
     response = await client.post("/api/v1/accounts/login/", data=payload)
@@ -1487,30 +1484,26 @@ async def test_rate(client, db_session):
     response = await client.post(
         "/api/v1/movies/create/",
         json=payload_movie,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data_movie = response.json()
 
-    payload = {
-        "score": 5.5
-    }
+    payload = {"score": 5.5}
     response = await client.post(
         f"/api/v1/movies/score/{response_data_movie["id"]}/",
         json=payload,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
     assert response_data["message"] == f"new rate - {payload["score"]}"
 
-    payload = {
-        "score": 7.6
-    }
+    payload = {"score": 7.6}
     response = await client.post(
         f"/api/v1/movies/score/{response_data_movie["id"]}/",
         json=payload,
-        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"}
+        headers={"Authorization": f"Bearer {response_data_log["access_token"]}"},
     )
     assert response.status_code == 201
     response_data = response.json()
@@ -1520,4 +1513,3 @@ async def test_rate(client, db_session):
     result: Result = await db_session.execute(stmt)
     rate = result.scalars().all()
     assert len(rate) == 1
-

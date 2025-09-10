@@ -1,6 +1,3 @@
-from typing import Annotated
-
-from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase
 
 

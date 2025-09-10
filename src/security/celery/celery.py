@@ -3,15 +3,12 @@ from datetime import datetime, timezone
 
 from celery import Celery
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models.accounts import ActivationTokenModel
 from ...database.session_postgresql import get_postgresql_db
 
 celery_app = Celery(
-    "cinema_mate",
-    broker="redis://redis:6379/0",
-    backend="redis://redis:6379/0"
+    "cinema_mate", broker="redis://redis:6379/0", backend="redis://redis:6379/0"
 )
 
 
@@ -33,5 +30,3 @@ async def _celery_delete_token():
 
     await db.commit()
     print(f"delete {count} tokens")
-
-from . import celery_configuration

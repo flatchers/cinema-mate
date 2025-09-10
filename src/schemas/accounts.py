@@ -1,9 +1,6 @@
-from datetime import datetime
 from typing import List, Literal
 
 from pydantic import BaseModel, EmailStr, ConfigDict
-
-from src.database.models.accounts import UserGroupEnum
 
 
 class UserCreate(BaseModel):
