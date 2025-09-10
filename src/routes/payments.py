@@ -295,7 +295,9 @@ async def my_webhook_view(request: Request, db: AsyncSession = Depends(get_db)):
             payment.order.status = StatusEnum.PAID
             user = await db.get(UserModel, payment.user_id)
             if not user:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                )
             send_payment_confirmation_email(user.email)
             await db.commit()
 
@@ -351,7 +353,9 @@ async def my_webhook_view(request: Request, db: AsyncSession = Depends(get_db)):
             current_user = result_user.scalars().first()
 
             if not current_user:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                )
             send_payment_confirmation_email(current_user.email)
             await db.commit()
             print(f"✅ Checkout session completed: {checkout_id}")
@@ -540,7 +544,9 @@ async def payment_list_for_moderator(
     user = result_user.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(

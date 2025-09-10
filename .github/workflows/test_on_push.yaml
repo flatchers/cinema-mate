@@ -16,6 +16,8 @@ jobs:
         run: flake8 src/
       - name: Run black
         run: black --check --diff src/
+      - name: Run mypy
+        run: mypy src/routes
       - name: Install dependencies
         run: pip install -r requirements.txt pytest pytest-asyncio
       - name: Run tests

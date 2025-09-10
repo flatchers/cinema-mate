@@ -164,7 +164,9 @@ async def remove_cart_item(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    stmt_cart_item = select(CartItemsModel).where(CartItemsModel.movie_id == cart_item_id)
+    stmt_cart_item = select(CartItemsModel).where(
+        CartItemsModel.movie_id == cart_item_id
+    )
     result_cart_item: Result = await session.execute(stmt_cart_item)
     cart_item = result_cart_item.scalars().first()
 
@@ -330,7 +332,9 @@ async def items_detail(
             status_code=status.HTTP_403_FORBIDDEN, detail="This function for admins"
         )
 
-    stmt_user = select(CartItemsModel).join(CartModel).where(CartModel.user_id == user_id)
+    stmt_user = (
+        select(CartItemsModel).join(CartModel).where(CartModel.user_id == user_id)
+    )
     result_user: Result = await session.execute(stmt_user)
     purpose_user = result_user.scalars().all()
 

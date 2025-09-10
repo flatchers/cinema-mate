@@ -32,7 +32,9 @@ from src.schemas.movies import (
     CommentSchema,
     MoviesForGenreResponse,
     ScoreRequestSchema,
-    MovieUpdate, MovieList, GenreResponse,
+    MovieUpdate,
+    MovieList,
+    GenreResponse,
 )
 from src.security.token_manipulation import get_current_user
 
@@ -68,7 +70,9 @@ async def film_create(
     user = result_user.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
@@ -193,14 +197,18 @@ async def movie_update(
     movie = result.scalars().first()
 
     if not movie:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found"
+        )
 
     stmt_user = select(UserModel).where(UserModel.id == current_user.id)
     result_user: Result = await db.execute(stmt_user)
     user = result_user.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     if not user.group or user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(
@@ -263,7 +271,7 @@ async def movie_delete(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access forbidden for {user.group.name if user.group else 'unknown'}: "
-                   f"insufficient permissions.",
+            f"insufficient permissions.",
         )
     stmt = (
         select(PaymentModel)
@@ -499,14 +507,18 @@ async def add_and_remove_like(
     movie = result.scalars().first()
 
     if not movie:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found"
+        )
 
     user_stmt = select(UserModel).where(UserModel.id == current_user.id)
     result_user: Result = await db.execute(user_stmt)
     user = result_user.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     if user in movie.like_users:
         movie.like_count -= 1
@@ -558,7 +570,9 @@ async def write_comments(
     movie = result_movie.scalars().first()
 
     if not movie:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found"
+        )
 
     db_comment = Comment(comment=schema.comments, user_id=user.id, movie_id=movie.id)
     db.add(db_comment)
@@ -785,12 +799,7 @@ async def movies_of_genre(
 
     movies_list: List[MovieList] = [
         MovieList(
-            id=m.id,
-            name=m.name,
-            year=m.year,
-            time=m.time,
-            imdb=m.imdb,
-            price=m.price
+            id=m.id, name=m.name, year=m.year, time=m.time, imdb=m.imdb, price=m.price
         )
         for m in movies
     ]
@@ -808,11 +817,7 @@ async def movies_of_genre(
     result_genres: Result = await db.execute(stmt_genres)
     genres = result_genres.scalars().all()
 
-    genre_list: List[GenreResponse] = [GenreResponse(
-        name=g.name
-        )
-        for g in genres
-    ]
+    genre_list: List[GenreResponse] = [GenreResponse(name=g.name) for g in genres]
     return MoviesForGenreResponse(
         count_movies=count_movies, genres=genre_list, movies=movies_list
     )
@@ -855,7 +860,9 @@ async def rate(
     movie = result_movie.scalars().first()
 
     if not movie:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found"
+        )
 
     if not rate:
         new_rate = Rate(rate=schema.score, user_id=current_user.id, movie_id=movie_id)
