@@ -19,8 +19,8 @@ Cinema Mate is an asynchronous web service built with **FastAPI** for managing m
 
 ## Features
 
-- CRUD operations for movies, orders, and shopping carts
-- User authentication and role-based permissions (e.g., moderators)
+- CRUD operations for accounts, movies, orders, and shopping carts
+- User authentication and role-based permissions (e.g., moderators, admins, users)
 - Payment handling with **Stripe**
 - Asynchronous database operations using **SQLAlchemy Async**
 - Unit and integration tests with **pytest** and **pytest-asyncio**
@@ -75,8 +75,10 @@ Locally:
 ---
 
 ## Docker:
-- **docker build -t cinema:latest .
-- **docker run -p 8000:8000 cinema:latest
+```bash
+docker build -t cinema:latest .
+docker run -p 8000:8000 cinema:latest
+```
 
 ---
 
@@ -109,6 +111,7 @@ This project uses GitHub Actions for:
 - **Building and pushing Docker images to AWS ECR
 
 - **Deploying to AWS ECS
+
 
 
 
