@@ -46,7 +46,7 @@ Cinema Mate is an asynchronous web service built with **FastAPI** for managing m
 Clone the repository:
 
 ```bash
-git clone https://github.com/<username>/cinema-mate.git
+git clone https://github.com/flatchers/cinema-mate.git
 cd cinema-mate
 ```
 
@@ -111,6 +111,7 @@ This project uses GitHub Actions for:
 - **Building and pushing Docker images to AWS ECR**
 
 - **Deploying to AWS ECS**
+
 
 
 
